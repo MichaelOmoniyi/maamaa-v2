@@ -1,0 +1,11 @@
+﻿{
+  "folders": [
+    { "path": "frontend" },
+    { "path": "backend" },
+    { "path": "ml" }
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "files.exclude": { "**/__pycache__": true }
+  }
+}
