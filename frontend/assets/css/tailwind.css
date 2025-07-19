@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-green hover:bg-dark-green text-white font-bold py-2 px-4 rounded;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-100 text-primary-green border border-primary-green font-bold py-2 px-4 rounded;
+  }
+}
