@@ -134,7 +134,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
           <!-- Testimonial 1 -->
           <div class="bg-white p-8 rounded-lg shadow-sm">
-            <img src="/images/quote.png" alt="quote" class="h-12 md:h-24 mb-4">
+            <img src="/images/quote.png" alt="quote" class="h-12 mb-4">
             <p class="text-gray-800 mb-8 text-lg">3 weddings every weekend. MaaMaa gives me peace of mind when planning portions."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
@@ -149,7 +149,7 @@
           
           <!-- Testimonial 2 -->
           <div class="bg-white p-8 rounded-lg shadow-sm">
-            <img src="/images/quote.png" alt="quote" class="h-12 md:h-24 mb-4">
+            <img src="/images/quote.png" alt="quote" class="h-12 mb-4">
             <p class="text-gray-800 mb-8 text-lg">Now I know what to buy and how much to cook. I feel more in control."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
@@ -164,7 +164,7 @@
           
           <!-- Testimonial 3 -->
           <div class="bg-white p-8 rounded-lg shadow-sm">
-            <img src="/images/quote.png" alt="quote" class="h-12 md:h-24 mb-4">
+            <img src="/images/quote.png" alt="quote" class="h-12 mb-4">
             <p class="text-gray-800 mb-8 text-lg">I don't waste stock anymore. MaaMaa reminds me when I'm running low."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
