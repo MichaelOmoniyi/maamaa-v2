@@ -9,6 +9,9 @@ module.exports = {
     "./error.vue",
   ],
   theme: {
+    fontFamily: {
+      'sans': ['"Geist"', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+    },
     extend: {
       colors: {
         "primary-green": "#007C2E",
