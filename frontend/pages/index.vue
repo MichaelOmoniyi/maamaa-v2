@@ -24,7 +24,7 @@
             Get early access
           </NuxtLink>
         </div>
-        <div class="w-full lg:w-1/2 mt-10 lg:mt-0 mx-auto px-6 md:px-8">
+        <div class="w-full lg:w-3/4 mt-10 lg:mt-0 mx-auto px-6 md:px-8">
           <div class="bg-white rounded-t-lg p-5 shadow-lg">
             <div class="relative rounded-md border border-gray-200 py-3">
               <input 
