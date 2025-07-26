@@ -1,216 +1,664 @@
 <template>
-  <div class="h-full flex flex-col">
-    <!-- Chat messages area -->
-    <div 
-      class="flex-1 p-6 overflow-y-auto"
-      ref="chatContainer"
-    >
-      <div v-if="!authStore.user" class="flex justify-center items-center h-full">
-        <div class="text-center">
-          <p class="text-lg text-gray-600 mb-4">You need to be logged in to chat with MaaMaa.</p>
-          <NuxtLink to="/login" class="btn-primary">Log In</NuxtLink>
+  <div class="w-full h-full flex flex-col">
+    <!-- Welcome screen (shown when no chat is active) -->
+    <div v-if="!currentChat" class="flex-1 flex flex-col items-center justify-center px-4">
+      <h1 class="text-4xl font-bold text-gray-800 mb-2">Welcome, {{ userName }}</h1>
+      
+      <div class="w-full max-w-2xl mt-8">
+        <div class="relative">
+          <input 
+            v-model="newChatMessage" 
+            type="text" 
+            placeholder="What can I help you with today?" 
+            class="w-full px-4 py-4 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            @keyup.enter="sendNewMessage"
+          />
+          <button 
+            @click="sendNewMessage" 
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-green-600 text-white rounded-full hover:bg-green-700"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
+      
+      <!-- Quick suggestion buttons -->
+      <div class="flex flex-wrap justify-center gap-4 mt-6">
+        <button 
+          v-for="(suggestion, index) in suggestions" 
+          :key="index"
+          @click="startChatWithSuggestion(suggestion)"
+          class="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium transition-colors"
+        >
+          {{ suggestion }}
+        </button>
+      </div>
 
-      <div v-else>
-        <!-- Welcome message -->
-        <div v-if="messages.length === 0" class="text-center py-8">
-          <img src="/images/maamaa-logo.png" alt="MaaMaa Logo" class="h-16 mx-auto mb-4" />
-          <h3 class="text-xl font-semibold text-gray-800 mb-2">Welcome to MaaMaa Chat!</h3>
-          <p class="text-gray-600 mb-4">Ask me anything about catering for your African event!</p>
-          <div class="flex flex-col items-center space-y-2">
-            <button 
-              v-for="(suggestion, index) in suggestions" 
-              :key="index"
-              class="bg-pale-green px-4 py-2 rounded-full text-sm text-dark-green hover:bg-light-green transition-colors"
-              @click="sendMessage(suggestion)"
-            >
-              {{ suggestion }}
-            </button>
-          </div>
+      <!-- Free plan info -->
+      <div class="mt-6 bg-gray-50 rounded-lg px-4 py-2 flex items-center gap-2">
+        <span class="text-sm text-gray-600">Free plan</span>
+        <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+        <a href="#" class="text-sm font-medium text-green-700">Upgrade</a>
+      </div>
+    </div>
+    
+    <!-- Chat conversation (shown when a chat is active) -->
+    <div v-else class="flex flex-col h-full">
+      <!-- Chat header -->
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-800">{{ currentChat.title }}</h2>
+      </div>
+      
+      <!-- Chat messages - Flex grow to take available space -->
+      <div class="flex-1 overflow-y-auto p-6" ref="messagesContainer" style="height: calc(100vh - 180px);">
+        <div v-if="loading" class="flex justify-center py-4">
+          <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
         </div>
-
-        <!-- Chat messages -->
-        <div v-for="(message, index) in messages" :key="index" class="mb-4">
+        
+        <div v-for="(message, index) in currentChat.messages" :key="index" class="mb-6">
           <!-- User message -->
           <div v-if="message.role === 'user'" class="flex justify-end">
-            <div class="bg-light-green text-dark-green rounded-lg py-3 px-4 max-w-[75%]">
-              <p class="whitespace-pre-wrap">{{ message.content }}</p>
+            <div class="bg-green-100 rounded-lg px-4 py-3 max-w-[75%]">
+              <p class="text-gray-800">{{ message.content }}</p>
             </div>
           </div>
           
           <!-- Assistant message -->
-          <div v-else class="flex">
-            <div class="bg-gray-100 text-dark-text rounded-lg py-3 px-4 max-w-[75%]">
-              <p class="whitespace-pre-wrap">{{ message.content }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Loading indicator -->
-        <div v-if="loading" class="flex mt-2">
-          <div class="bg-gray-100 text-dark-text rounded-lg py-3 px-4">
-            <div class="flex items-center">
-              <span class="h-2 w-2 bg-gray-500 rounded-full animate-bounce"></span>
-              <span class="h-2 w-2 bg-gray-500 rounded-full animate-bounce mx-1" style="animation-delay: 0.2s"></span>
-              <span class="h-2 w-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+          <div v-else class="flex justify-start">
+            <div class="bg-gray-100 rounded-lg px-4 py-3 max-w-[75%]">
+              <div v-if="message.type === 'ingredients'" class="space-y-2">
+                <h3 class="font-medium text-gray-800">{{ message.title }}</h3>
+                <p class="text-gray-600 text-sm">{{ message.subtitle }}</p>
+                
+                <div class="mt-4">
+                  <div v-for="(item, idx) in message.items" :key="idx" class="flex justify-between py-2 border-b border-gray-200 last:border-0">
+                    <span>{{ item.name }}</span>
+                    <span class="font-medium">{{ item.quantity }}</span>
+                  </div>
+                </div>
+                
+                <div class="mt-4">
+                  <h4 class="font-medium">Estimated cost:</h4>
+                  <div class="mt-2 space-y-1">
+                    <div class="flex items-center">
+                      <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                      <span>Total: {{ message.cost.total }}</span>
+                    </div>
+                    <div class="flex items-center">
+                      <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                      <span>Per Guest: {{ message.cost.perGuest }}</span>
+                    </div>
+                  </div>
+                  <p class="text-gray-500 text-xs mt-2">{{ message.cost.note }}</p>
+                </div>
+                
+                <!-- Message Actions -->
+                <MessageActions 
+                  :message="message" 
+                  :show-retry="false"
+                  @copy="handleCopyMessage"
+                  @share="handleShareMessage"
+                />
+              </div>
+              
+              <div v-else-if="message.type === 'steps'" class="space-y-4">
+                <h3 class="font-medium text-gray-800">{{ message.title }}</h3>
+                
+                <ol class="list-decimal pl-5 space-y-2">
+                  <li v-for="(step, stepIdx) in message.steps" :key="stepIdx" class="text-gray-700">
+                    {{ step }}
+                  </li>
+                </ol>
+                
+                <!-- Message Actions -->
+                <MessageActions 
+                  :message="message" 
+                  :show-retry="false"
+                  @copy="handleCopyMessage"
+                  @share="handleShareMessage"
+                />
+              </div>
+              
+              <div v-else-if="message.type === 'vendor_offer'" class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <span class="p-1 bg-green-100 rounded">🛒</span>
+                  <h3 class="font-medium">{{ message.title }}</h3>
+                </div>
+                
+                <ul class="mt-2 space-y-1">
+                  <li v-for="(point, pointIdx) in message.points" :key="pointIdx" class="flex items-center">
+                    <div class="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                    <span>{{ point }}</span>
+                  </li>
+                </ul>
+                
+                <div class="mt-2">
+                  <span class="text-sm text-gray-600">Type: </span>
+                  <span class="text-sm font-medium">{{ message.actionType }}</span>
+                </div>
+                
+                <!-- Message Actions -->
+                <MessageActions 
+                  :message="message" 
+                  :show-retry="true"
+                  @copy="handleCopyMessage"
+                  @share="handleShareMessage"
+                  @retry="handleRetryMessage"
+                />
+              </div>
+              
+              <div v-else>
+                <p class="text-gray-800">{{ message.content }}</p>
+                
+                <!-- Message Actions -->
+                <MessageActions 
+                  :message="message" 
+                  :show-retry="true"
+                  @copy="handleCopyMessage"
+                  @share="handleShareMessage"
+                  @retry="handleRetryMessage"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    
-    <!-- Chat input -->
-    <div class="border-t border-gray-200 p-4 bg-white">
-      <form @submit.prevent="sendMessage" v-if="authStore.user">
-        <div class="flex">
-          <input
-            v-model="userInput"
-            type="text"
-            class="flex-grow border rounded-l-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary-green"
-            placeholder="Type a message..."
-            :disabled="loading"
-            @keydown.enter="sendMessage"
+      
+      <!-- Message input - Fixed at bottom -->
+      <div class="border-t border-gray-200 px-4 py-3 bg-white sticky bottom-0 w-full">
+        <div class="relative">
+          <input 
+            v-model="newMessage" 
+            type="text" 
+            placeholder="Type a message..." 
+            class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            @keyup.enter="sendMessage"
           />
-          <button
-            type="submit"
-            class="bg-primary-green hover:bg-light-green text-white px-6 rounded-r-lg transition duration-200 flex items-center justify-center"
-            :disabled="loading || !userInput.trim()"
+          <button 
+            @click="sendMessage" 
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 bg-green-600 text-white rounded-full hover:bg-green-700"
           >
-            <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span v-else>Send</span>
           </button>
         </div>
-      </form>
+        
+        <div class="flex justify-start mt-2">
+          <button class="p-2 text-gray-500 hover:text-gray-700">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
+    
+    <!-- Share Modal -->
+    <ShareOptions
+      :is-open="shareModalOpen"
+      :title="currentChat?.title || ''"
+      :content="messageToShare"
+      @close="shareModalOpen = false"
+      @copy-link="handleCopyLink"
+      @share-x="handleShareToX"
+      @share-linkedin="handleShareToLinkedIn"
+    />
   </div>
 </template>
 
 <script setup>
+import { ref, computed, onMounted, watch, inject } from 'vue';
+import { useAuthStore } from '~/store/auth';
+import MessageActions from '~/components/MessageActions.vue';
+import ShareOptions from '~/components/ShareOptions.vue';
+
 definePageMeta({
   middleware: ['auth'],
   layout: 'chat'
 });
 
-import { useAuthStore } from '~/store/auth';
 const authStore = useAuthStore();
-const userInput = ref('');
-const messages = ref([]);
+const router = useRouter();
+const route = useRoute();
+
+// Get chat data from layout
+const chatData = inject('chatData');
+
+// User data
+const userName = computed(() => {
+  if (authStore.user?.user_metadata?.full_name) {
+    return authStore.user.user_metadata.full_name.split(' ')[0];
+  }
+  return authStore.user?.name?.split(' ')[0] || 'Snow';
+});
+
+// Chat state
 const loading = ref(false);
-const chatContainer = ref(null);
+const newChatMessage = ref('');
+const newMessage = ref('');
+const messagesContainer = ref(null);
 
-// Suggested questions for users
+// Share modal state
+const shareModalOpen = ref(false);
+const messageToShare = ref(null);
+
+// Use the currentChat from the parent layout if available
+const currentChat = ref(null);
+
+// Sample chat data with detailed messages
+const loadDetailedChatData = () => {
+  if (process.client) {
+    try {
+      const savedData = localStorage.getItem('maamaa_detailed_chats');
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+    } catch (error) {
+      console.error('Error loading detailed chat data from localStorage:', error);
+    }
+  }
+  
+  // Default detailed chat data
+  return {
+    '1': {
+      id: '1',
+      title: 'Jollof Event for 150 Guests',
+      updatedAt: new Date(),
+      messages: [
+        {
+          role: 'user',
+          content: 'I want to make jollof rice for 150 guests'
+        },
+        {
+          role: 'assistant',
+          content: 'Got it! Planning a feast for 150 guests with Jollof Rice.',
+          type: 'text'
+        },
+        {
+          role: 'assistant',
+          type: 'ingredients',
+          title: 'Here\'s what I recommend based on typical servings:',
+          items: [
+            { name: 'Rice', quantity: '15 kg' },
+            { name: 'Tomatoes', quantity: '8 kg' },
+            { name: 'Red peppers', quantity: '5 kg' },
+            { name: 'Onions', quantity: '4 kg' },
+            { name: 'Vegetable oil', quantity: '3 L' },
+            { name: 'Seasoning & spices', quantity: '1.5 kg' },
+            { name: 'Stock (broth)', quantity: '5 L' },
+          ],
+          cost: {
+            total: 'N92,000',
+            perGuest: 'N613',
+            note: '(Based on current Lagos market prices)'
+          }
+        },
+        {
+          role: 'assistant',
+          type: 'steps',
+          title: 'Cooking steps scaled for 150 people:',
+          steps: [
+            'Parboil 15 kg of rice for 10 min, rinse & set aside.',
+            'Blend tomatoes, peppers & onions into smooth paste.',
+            'Heat 3L oil, fry blend for 20 min with spices.',
+            'Add 5L stock, season well.',
+            'Stir in rice, cover & steam till done (30-40 min).',
+            'Keep fluffing so it stays vibrant & not soggy.'
+          ]
+        }
+      ]
+    },
+    '2': {
+      id: '2',
+      title: 'Coconut Rice High Class Event',
+      updatedAt: new Date(Date.now() - 86400000),
+      messages: [
+        {
+          role: 'user',
+          content: 'I need to prepare coconut rice for a high class event'
+        },
+        {
+          role: 'assistant',
+          content: 'I\'ll help you prepare an elegant coconut rice dish for your high-class event.',
+          type: 'text'
+        },
+        {
+          role: 'assistant',
+          type: 'vendor_offer',
+          title: 'Want me to find vendors for you?',
+          points: [
+            'I can pull live quotes from 5 suppliers in your area.',
+            'Or help compare prices if you have a preferred market.'
+          ],
+          actionType: 'Find vendors for me'
+        }
+      ]
+    }
+  };
+};
+
+const detailedChatData = ref(loadDetailedChatData());
+
+// Save detailed chat data when it changes
+watch(detailedChatData, (newData) => {
+  if (process.client) {
+    try {
+      localStorage.setItem('maamaa_detailed_chats', JSON.stringify(newData.value));
+    } catch (error) {
+      console.error('Error saving detailed chat data to localStorage:', error);
+    }
+  }
+}, { deep: true });
+
+// Quick suggestions
 const suggestions = [
-  "How much food should I prepare for 50 guests?",
-  "What are some popular Nigerian dishes for events?",
-  "Can you suggest a menu for a Ghanaian wedding?",
-  "How do I calculate drinks for a party?",
+  'Plan an event for me',
+  'Help me with my sales breakdown',
+  'I need vendors around me'
 ];
 
-// Dummy responses for the AI assistant
-const dummyResponses = {
-  "How much food should I prepare for 50 guests?": 
-    "For 50 guests, I recommend planning for:\n\n- Main dishes: 25-30 pounds (or approximately 12-15 kg)\n- Side dishes: 12-15 pounds (or about 6-7.5 kg)\n- Rice or other starches: 10-12 pounds (or about 5-6 kg)\n\nIn Nigerian catering specifically, a good rule of thumb is to plan for about 0.5-0.75 pound of main dish protein per person, slightly more if you're serving bone-in meat. Remember that it's always better to have a bit extra than to run out!",
-  
-  "What are some popular Nigerian dishes for events?": 
-    "Popular Nigerian dishes for events include:\n\n1. Jollof Rice - Essential for any Nigerian celebration\n2. Pounded Yam with Egusi Soup - A traditional favorite\n3. Moin Moin - Steamed bean pudding\n4. Suya - Spiced skewered meat\n5. Asaro (Yam Porridge) - Hearty and filling\n6. Chin Chin - Sweet fried pastry snacks\n7. Small Chops - Assortment of appetizers like puff puff, samosas, etc.\n8. Pepper Soup - Spicy meat or fish soup\n9. Plantain (fried or grilled) - Popular side dish\n\nThe most successful events typically feature Jollof Rice, a protein option (often chicken, beef, or fish), and at least 2-3 sides.",
-  
-  "Can you suggest a menu for a Ghanaian wedding?": 
-    "For a Ghanaian wedding, here's a traditional menu suggestion:\n\n**Main Dishes:**\n- Waakye (rice and beans)\n- Jollof Rice\n- Banku with Okra Stew\n- Fufu with Light Soup or Groundnut Soup\n\n**Proteins:**\n- Grilled Tilapia\n- Chicken Stew\n- Kelewele (spiced fried plantains)\n- Beef Kebabs\n\n**Sides:**\n- Gari Foto\n- Kontomire Stew (cocoyam leaves)\n- Shito (hot pepper sauce)\n- Plantains (various preparations)\n\n**Desserts:**\n- Cake (often multi-tiered)\n- Traditional sweet treats like Bofrot (puff puff)\n\nThis menu offers a good balance of traditional Ghanaian dishes that work well for large celebrations.",
-  
-  "How do I calculate drinks for a party?": 
-    "For calculating drinks at an African event:\n\n**General Guidelines:**\n- Plan for 1-2 drinks per person per hour\n- For a 4-hour event with 50 guests: 200-400 total drinks\n\n**Popular Drink Distribution:**\n- Water: 30% (always have plenty)\n- Soft drinks (Coca-Cola, Fanta, etc.): 25%\n- Beer: 20%\n- Wine: 15%\n- Spirits: 10%\n\n**Don't forget traditional drinks like:**\n- Zobo (Hibiscus drink)\n- Chapman\n- Palm Wine (for traditional events)\n- Sobolo\n\nConsider having more non-alcoholic options if your event includes many children or non-drinkers.",
-};
-
-// Generic responses for other queries
-const genericResponses = [
-  "That's a great question about African catering! Based on my knowledge, I'd suggest looking into traditional recipes that incorporate local spices and ingredients. Would you like me to suggest some specific dishes?",
-  
-  "When planning African cuisine for events, it's important to consider regional variations. West African food differs from East African cuisine in terms of spices and preparation methods. What specific region are you interested in?",
-  
-  "For your event, I recommend incorporating a mix of traditional dishes and fusion options to cater to different tastes. This approach has been very successful for many events I've helped plan.",
-  
-  "Portion sizes for African events tend to be generous. I typically recommend planning for about 1.5 times the usual portion size per person, especially for staple foods like rice and fufu.",
-  
-  "Based on my experience with similar events, I would suggest focusing on a few signature dishes done extremely well rather than many mediocre options. Quality over quantity always makes for a more memorable event.",
-];
-
-// Function to send message
-const sendMessage = async (text = null) => {
-  // Don't send empty messages
-  const messageContent = text || userInput.value.trim();
-  if (!messageContent || loading.value) return;
-  
-  // Add user message
-  messages.value.push({
-    role: 'user',
-    content: messageContent,
-  });
-  
-  // Clear input if it's from the text input (not a suggestion)
-  if (!text) userInput.value = '';
-  
-  // Set loading state
-  loading.value = true;
-  
-  // Simulate AI response delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Generate AI response
-  let aiResponse;
-  
-  // Check for predefined responses first
-  if (dummyResponses[messageContent]) {
-    aiResponse = dummyResponses[messageContent];
-  } else {
-    // Use a random generic response
-    const randomIndex = Math.floor(Math.random() * genericResponses.length);
-    aiResponse = genericResponses[randomIndex];
-  }
-  
-  // Add AI response
-  messages.value.push({
-    role: 'assistant',
-    content: aiResponse,
-  });
-  
-  // Clear loading state
-  loading.value = false;
-  
-  // Scroll to bottom after rendering
-  nextTick(() => {
-    scrollToBottom();
-  });
-};
-
-// Scroll chat to bottom
+// Methods
 const scrollToBottom = () => {
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+  if (messagesContainer.value) {
+    setTimeout(() => {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    }, 100);
   }
 };
 
-// Scroll to bottom when messages change
-watch(messages, () => {
-  nextTick(() => {
+// Handle message actions
+const handleCopyMessage = (message) => {
+  navigator.clipboard.writeText(message.content)
+    .then(() => {
+      // Could show a toast notification here
+      console.log('Message copied to clipboard');
+    })
+    .catch(err => {
+      console.error('Failed to copy message:', err);
+    });
+};
+
+const handleShareMessage = (message) => {
+  messageToShare.value = message;
+  shareModalOpen.value = true;
+};
+
+const handleRetryMessage = (message) => {
+  // Find the index of the message to retry
+  const index = currentChat.value.messages.findIndex(m => m === message);
+  if (index !== -1) {
+    // Remove all messages after this one
+    currentChat.value.messages = currentChat.value.messages.slice(0, index);
+    // Simulate generating a new response
+    loading.value = true;
+    setTimeout(() => {
+      currentChat.value.messages.push({
+        role: 'assistant',
+        content: `Here's a regenerated response to replace the previous one.`
+      });
+      loading.value = false;
+      scrollToBottom();
+      
+      // Save to detailed chat data
+      if (detailedChatData.value) {
+        detailedChatData.value[currentChat.value.id] = currentChat.value;
+      }
+      
+      // Update chat history in parent layout
+      if (chatData) {
+        chatData.updateChatHistory(currentChat.value);
+      }
+    }, 1000);
+  }
+};
+
+// Share modal actions
+const handleCopyLink = () => {
+  const chatId = currentChat.value.id;
+  const url = `${window.location.origin}/chat?id=${chatId}`;
+  navigator.clipboard.writeText(url)
+    .then(() => {
+      shareModalOpen.value = false;
+      // Could show a toast notification here
+      console.log('Link copied to clipboard');
+    })
+    .catch(err => {
+      console.error('Failed to copy link:', err);
+    });
+};
+
+const handleShareToX = () => {
+  const chatId = currentChat.value.id;
+  const url = `${window.location.origin}/chat?id=${chatId}`;
+  const text = `Check out this conversation about ${currentChat.value.title} on MaaMaa!`;
+  const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  window.open(shareUrl, '_blank');
+  shareModalOpen.value = false;
+};
+
+const handleShareToLinkedIn = () => {
+  const chatId = currentChat.value.id;
+  const url = `${window.location.origin}/chat?id=${chatId}`;
+  const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+  window.open(shareUrl, '_blank');
+  shareModalOpen.value = false;
+};
+
+const sendMessage = () => {
+  if (!newMessage.value.trim()) return;
+  
+  if (currentChat.value) {
+    currentChat.value.messages.push({
+      role: 'user',
+      content: newMessage.value
+    });
+    
+    // Update the chat's timestamp
+    currentChat.value.updatedAt = new Date();
+    
+    // Save to detailed chat data
+    if (detailedChatData.value) {
+      detailedChatData.value[currentChat.value.id] = currentChat.value;
+    }
+    
+    // Update chat history in parent layout
+    if (chatData) {
+      chatData.updateChatHistory(currentChat.value);
+    }
+    
+    // Simulate response
+    loading.value = true;
+    setTimeout(() => {
+      currentChat.value.messages.push({
+        role: 'assistant',
+        content: `I've received your message: "${newMessage.value}". How can I assist you further?`
+      });
+      loading.value = false;
+      scrollToBottom();
+      
+      // Save to detailed chat data again
+      if (detailedChatData.value) {
+        detailedChatData.value[currentChat.value.id] = currentChat.value;
+      }
+      
+      // Update chat history in parent layout again
+      if (chatData) {
+        chatData.updateChatHistory(currentChat.value);
+      }
+    }, 1000);
+    
+    newMessage.value = '';
     scrollToBottom();
-  });
+  }
+};
+
+const sendNewMessage = () => {
+  if (!newChatMessage.value.trim()) return;
+  
+  // Create a new chat
+  const newChat = {
+    id: Date.now().toString(),
+    title: newChatMessage.value,
+    updatedAt: new Date(),
+    messages: [
+      {
+        role: 'user',
+        content: newChatMessage.value
+      }
+    ]
+  };
+  
+  // Set as current chat
+  currentChat.value = newChat;
+  
+  // Save to detailed chat data
+  if (detailedChatData.value) {
+    detailedChatData.value[newChat.id] = newChat;
+  }
+  
+  // Update chat history in parent layout
+  if (chatData) {
+    chatData.updateChatHistory(newChat);
+    chatData.currentChatId = newChat.id;
+  }
+  
+  // Update URL without reloading the page
+  router.replace({ path: '/chat', query: { id: newChat.id } });
+  
+  // Simulate response
+  loading.value = true;
+  setTimeout(() => {
+    currentChat.value.messages.push({
+      role: 'assistant',
+      content: `I'll help you with "${newChatMessage.value}". What specific details would you like to know?`
+    });
+    loading.value = false;
+    scrollToBottom();
+    
+          // Save to detailed chat data again
+      if (detailedChatData.value) {
+        detailedChatData.value[newChat.id] = currentChat.value;
+      }
+    
+    // Update chat history in parent layout again
+    if (chatData) {
+      chatData.updateChatHistory(currentChat.value);
+    }
+  }, 1000);
+  
+  newChatMessage.value = '';
+};
+
+const startChatWithSuggestion = (suggestion) => {
+  newChatMessage.value = suggestion;
+  sendNewMessage();
+};
+
+const loadChat = (chat) => {
+  // If we have detailed data for this chat, use it
+  if (detailedChatData.value && detailedChatData.value[chat.id]) {
+    currentChat.value = detailedChatData.value[chat.id];
+  } else {
+    // Otherwise use the chat as is
+    currentChat.value = chat;
+    
+    // Initialize messages array if it doesn't exist
+    if (!currentChat.value.messages) {
+      currentChat.value.messages = [];
+    }
+    
+    // Save this chat to detailed data for future use
+    if (detailedChatData.value) {
+      detailedChatData.value[chat.id] = currentChat.value;
+    }
+  }
+  
+  scrollToBottom();
+};
+
+// Function to load chat from URL query parameters
+const loadChatFromUrlParams = () => {
+  const chatId = route.query.id;
+  
+  if (!chatId) {
+    // No chat ID in URL, show welcome screen
+    currentChat.value = null;
+    return;
+  }
+  
+  // First check if we have detailed data for this chat
+  if (detailedChatData.value && detailedChatData.value[chatId]) {
+    currentChat.value = detailedChatData.value[chatId];
+    
+    // Also update the chat history in the layout
+    if (chatData) {
+      chatData.currentChatId = chatId;
+      chatData.updateChatHistory(currentChat.value);
+    }
+    return;
+  }
+  
+  // Next check if the chat is in the history
+  if (chatData) {
+    const chat = chatData.chatHistory.find(c => c.id === chatId);
+    if (chat) {
+      loadChat(chat);
+      return;
+    }
+  }
+  
+  // If we get here, we have a chat ID but no data for it
+  // Let's create a placeholder chat with the ID
+  console.log('Creating placeholder chat for ID:', chatId);
+  const placeholderChat = {
+    id: chatId,
+    title: `Chat ${chatId}`,
+    updatedAt: new Date(),
+    messages: []
+  };
+  
+  currentChat.value = placeholderChat;
+  
+  // Update chat history in parent layout
+  if (chatData) {
+    chatData.currentChatId = chatId;
+    chatData.updateChatHistory(placeholderChat);
+  }
+};
+
+// Watch for changes in route query parameters
+watch(() => route.query.id, (newChatId, oldChatId) => {
+  // Only reload if the ID actually changed
+  if (newChatId !== oldChatId) {
+    loadChatFromUrlParams();
+  }
+}, { immediate: true });
+
+// Register this component with the layout
+onMounted(() => {
+  if (chatData) {
+    // Register this component with the layout
+    chatData.setChatPageInstance({
+      loadChat,
+      currentChat,
+      resetChat: () => {
+        currentChat.value = null;
+      }
+    });
+    
+    // Load chat based on URL parameters
+    loadChatFromUrlParams();
+  }
+  
+  // Scroll to bottom of messages if any
+  scrollToBottom();
+});
+
+// Watch for changes to current chat to scroll to bottom
+watch(() => currentChat.value?.messages?.length, () => {
+  scrollToBottom();
 });
 </script>
-
-<style scoped>
-.btn-primary {
-  background-color: #007C2E;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  transition: background-color 0.2s;
-}
-
-.btn-primary:hover {
-  background-color: #5DBB63;
-}
-</style>
