@@ -138,7 +138,7 @@
             <p class="text-gray-800 mb-8 text-lg">3 weddings every weekend. MaaMaa gives me peace of mind when planning portions."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
-                <img src="/images/bukky.png" alt="Bukky" class="w-full h-full object-cover" />
+                <img src="/images/testimonials/bukky.png" alt="Bukky" class="w-full h-full object-cover" />
               </div>
               <div>
                 <p class="font-medium">Bukky</p>
@@ -153,7 +153,7 @@
             <p class="text-gray-800 mb-8 text-lg">Now I know what to buy and how much to cook. I feel more in control."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
-                <img src="/images/femi.png" alt="Femi" class="w-full h-full object-cover" />
+                <img src="/images/testimonials/femi.png" alt="Femi" class="w-full h-full object-cover" />
               </div>
               <div>
                 <p class="font-medium">Femi</p>
@@ -168,7 +168,7 @@
             <p class="text-gray-800 mb-8 text-lg">I don't waste stock anymore. MaaMaa reminds me when I'm running low."</p>
             <div class="flex items-center">
               <div class="w-12 h-12 bg-gray-300 rounded-full mr-4 overflow-hidden">
-                <img src="/images/mama-ijeoma.png" alt="Mama Ijeoma" class="w-full h-full object-cover" />
+                <img src="/images/testimonials/mama-ijeoma.png" alt="Mama Ijeoma" class="w-full h-full object-cover" />
               </div>
               <div>
                 <p class="font-medium">Mama Ijeoma</p>
@@ -307,6 +307,13 @@
     </section>
   </div>
 </template>
+
+<script setup>
+definePageMeta({
+  middleware: ['auth'],
+  layout: 'default'
+});
+</script>
 
 <style scoped>
 .hero-home {
