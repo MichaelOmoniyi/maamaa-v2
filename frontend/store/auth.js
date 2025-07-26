@@ -4,7 +4,11 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     loading: false,
     error: null,
-    user: null,
+    user: {
+      name: "Faith Olohijere",
+      email: "faith@example.com",
+      plan: "Free plan",
+    }, // Mock user for development
   }),
 
   actions: {
