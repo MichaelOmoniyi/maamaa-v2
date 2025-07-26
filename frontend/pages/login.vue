@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-pale-green py-12">
+  <div class="min-h-screen bg-pale-green items-center justify-center flex py-12">
     <div class="container mx-auto px-4">
       <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
         <div class="bg-primary-green p-4">
@@ -83,6 +83,10 @@
 <script setup>
 import { useAuthStore } from '~/store/auth';
 
+definePageMeta({
+  layout: false
+});
+
 const authStore = useAuthStore();
 const router = useRouter();
 
@@ -107,8 +111,8 @@ const login = async () => {
       return;
     }
 
-    // Login successful, redirect to home page
-    router.push('/');
+    // Login successful, redirect to chat page instead of home page
+    router.push('/chat');
   } catch (e) {
     error.value = e.message || 'An error occurred during login.';
   } finally {
