@@ -4,11 +4,7 @@ export const useAuthStore = defineStore("auth", {
   state: () => ({
     loading: false,
     error: null,
-    user: {
-      name: "Faith Olohijere",
-      email: "faith@example.com",
-      plan: "Free plan",
-    }, // Mock user for development
+    user: null, // Remove mock user
   }),
 
   actions: {
@@ -47,6 +43,7 @@ export const useAuthStore = defineStore("auth", {
 
       try {
         const supabase = useSupabaseClient();
+        console.log("Attempting to login with Supabase...");
 
         // Sign in the user with Supabase
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -54,14 +51,26 @@ export const useAuthStore = defineStore("auth", {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase login error:", error);
+          throw error;
+        }
 
+        console.log("Login successful:", data);
         // Set the user in state
         this.user = data.user;
 
         return { data, error: null };
       } catch (error) {
-        this.error = error.message;
+        console.error("Login error details:", error);
+        // Provide more specific error messages
+        if (error.message.includes("Invalid login credentials")) {
+          this.error = "Invalid email or password. Please check your credentials.";
+        } else if (error.message.includes("Email not confirmed")) {
+          this.error = "Please confirm your email address before logging in.";
+        } else {
+          this.error = error.message || "Failed to login. Please try again later.";
+        }
         return { data: null, error };
       } finally {
         this.loading = false;

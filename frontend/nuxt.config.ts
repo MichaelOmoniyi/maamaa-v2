@@ -17,6 +17,19 @@ export default defineNuxtConfig({
     viewer: true,
   },
   supabase: {
-    redirect: false
+    redirect: false,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      exclude: ['/'],
+    },
+    // Uncomment and update these with your Supabase credentials
+    // url: process.env.SUPABASE_URL || 'https://suqrahkqnegakajgeiuw.supabase.co',
+    // key: process.env.SUPABASE_KEY || 'your-anon-key',
+    cookieOptions: {
+      maxAge: 60 * 60 * 8, // 8 hours
+      sameSite: 'lax',
+      secure: true
+    }
   }
 })

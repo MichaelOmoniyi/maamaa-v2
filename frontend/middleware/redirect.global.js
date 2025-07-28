@@ -1,12 +1,12 @@
 import { useAuthStore } from "~/store/auth";
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to, from) => {
   // Only run on client-side
   if (import.meta.client) {
     const authStore = useAuthStore();
 
-    // If user is logged in and trying to access the root path, redirect to chat page
-    if (authStore.isLoggedIn && to.path === '/') {
+    // Only redirect to chat page if coming from login page
+    if (authStore.isLoggedIn && to.path === '/' && from.path === '/login') {
       return navigateTo('/chat');
     }
   }
