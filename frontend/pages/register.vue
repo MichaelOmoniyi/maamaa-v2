@@ -192,7 +192,7 @@ const register = async () => {
     // If login successful, redirect to chat page after 2 seconds
     setTimeout(() => {
       router.push('/chat');
-    }, 2000);
+    }, 3000);
     
   } catch (e) {
     error.value = e.message || 'An error occurred during registration.';
