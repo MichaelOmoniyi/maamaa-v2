@@ -176,7 +176,7 @@ const register = async () => {
     }
 
     // Registration successful
-    successMessage.value = 'Registration successful! Redirecting to chat...';
+    successMessage.value = 'Registration successful! Kindly check your email for verification.';
     
     // Auto-login the user
     const { error: loginError } = await authStore.login(form.email, form.password);
