@@ -276,39 +276,39 @@ const toggleUserMenu = () => {
 };
 
 // Chat state management
-const loadChatHistoryFromStorage = () => {
-  if (process.client) {
-    try {
-      const savedHistory = localStorage.getItem('maamaa_chat_history');
-      if (savedHistory) {
-        return JSON.parse(savedHistory);
-      }
-    } catch (error) {
-      console.error('Error loading chat history from localStorage:', error);
-    }
+const loadChatHistoryFromDatabase = async () => {
+  try {
+    const supabase = useSupabaseClient();
+    const { data, error } = await supabase
+      .from('chats')
+      .select('*')
+      .order('updated_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    // Transform the data to match our expected format
+    return data.map(chat => ({
+      id: chat.id,
+      title: chat.title,
+      updatedAt: new Date(chat.updated_at),
+      user_id: chat.user_id
+    })) || [];
+  } catch (error) {
+    console.error('Error loading chat history:', error);
+    return [];
   }
-  
-  // Default chat history if nothing in storage
-  return [
-    { id: '1', title: 'Jollof Event for 150 Guests', updatedAt: new Date() },
-    { id: '2', title: 'Coconut Rice High Class Event', updatedAt: new Date(Date.now() - 86400000) }
-  ];
 };
 
-const chatHistory = ref(loadChatHistoryFromStorage());
+const chatHistory = ref([]);
 const currentChatId = ref(null);
 const currentChat = ref(null);
 
-// Save chat history to localStorage when it changes
-watch(chatHistory, (newHistory) => {
-  if (process.client) {
-    try {
-      localStorage.setItem('maamaa_chat_history', JSON.stringify(newHistory));
-    } catch (error) {
-      console.error('Error saving chat history to localStorage:', error);
-    }
+// Load chat history when component mounts or user changes
+const loadChats = async () => {
+  if (authStore.isLoggedIn) {
+    chatHistory.value = await loadChatHistoryFromDatabase();
   }
-}, { deep: true });
+};
 
 // Check for chat ID in URL on initial load
 const route = useRoute();
@@ -374,6 +374,25 @@ const loadChat = (chat) => {
 // Reference to the chat page component instance
 const chatPageInstance = ref(null);
 
+// Update chat in database
+const updateChatInDatabase = async (chat) => {
+  try {
+    const supabase = useSupabaseClient();
+    const { error } = await supabase
+      .from('chats')
+      .upsert({
+        id: chat.id,
+        user_id: authStore.user.id,
+        title: chat.title,
+        updated_at: new Date().toISOString()
+      });
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error updating chat:', error);
+  }
+};
+
 // Provide chat data and methods to descendants
 provide('chatData', {
   chatHistory,
@@ -384,7 +403,11 @@ provide('chatData', {
   setChatPageInstance: (instance) => {
     chatPageInstance.value = instance;
   },
-  updateChatHistory: (updatedChat) => {
+  updateChatHistory: async (updatedChat) => {
+    // Update in database
+    await updateChatInDatabase(updatedChat);
+    
+    // Update in local state
     const index = chatHistory.value.findIndex(c => c.id === updatedChat.id);
     if (index !== -1) {
       chatHistory.value[index] = updatedChat;
@@ -423,7 +446,17 @@ const handleClickOutside = (event) => {
   }
 };
 
+// Watch for user changes and reload chat history
+watch(() => authStore.user?.id, (newUserId) => {
+  if (newUserId) {
+    loadChats();
+  } else {
+    chatHistory.value = [];
+  }
+}, { immediate: true });
+
 onMounted(() => {
+  loadChats();
   document.addEventListener('click', handleClickOutside);
   checkMobileScreen(); // Set initial state on mount
   window.addEventListener('resize', checkMobileScreen); // Add event listener for resize

@@ -248,110 +248,47 @@ const messageToShare = ref(null);
 // Use the currentChat from the parent layout if available
 const currentChat = ref(null);
 
-// Sample chat data with detailed messages
-const loadDetailedChatData = () => {
-  if (process.client) {
-    try {
-      const savedData = localStorage.getItem('maamaa_detailed_chats');
-      if (savedData) {
-        return JSON.parse(savedData);
+// Load detailed chat data from Supabase
+const loadChatMessages = async (chatId) => {
+  try {
+    const supabase = useSupabaseClient();
+    
+    // Get messages for this chat
+    const { data: messages, error: messagesError } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('chat_id', chatId)
+      .order('created_at');
+      
+    if (messagesError) throw messagesError;
+    
+    // Transform messages to match our expected format
+    return messages.map(msg => {
+      // For non-text messages, parse metadata
+      if (msg.type !== 'text' && msg.metadata) {
+        return {
+          ...msg.metadata,
+          role: msg.role,
+          content: msg.content,
+          type: msg.type
+        };
       }
-    } catch (error) {
-      console.error('Error loading detailed chat data from localStorage:', error);
-    }
+      
+      // For text messages
+      return {
+        role: msg.role,
+        content: msg.content,
+        type: msg.type || 'text'
+      };
+    });
+  } catch (error) {
+    console.error('Error loading chat messages:', error);
+    return [];
   }
-  
-  // Default detailed chat data
-  return {
-    '1': {
-      id: '1',
-      title: 'Jollof Event for 150 Guests',
-      updatedAt: new Date(),
-      messages: [
-        {
-          role: 'user',
-          content: 'I want to make jollof rice for 150 guests'
-        },
-        {
-          role: 'assistant',
-          content: 'Got it! Planning a feast for 150 guests with Jollof Rice.',
-          type: 'text'
-        },
-        {
-          role: 'assistant',
-          type: 'ingredients',
-          title: 'Here\'s what I recommend based on typical servings:',
-          items: [
-            { name: 'Rice', quantity: '15 kg' },
-            { name: 'Tomatoes', quantity: '8 kg' },
-            { name: 'Red peppers', quantity: '5 kg' },
-            { name: 'Onions', quantity: '4 kg' },
-            { name: 'Vegetable oil', quantity: '3 L' },
-            { name: 'Seasoning & spices', quantity: '1.5 kg' },
-            { name: 'Stock (broth)', quantity: '5 L' },
-          ],
-          cost: {
-            total: 'N92,000',
-            perGuest: 'N613',
-            note: '(Based on current Lagos market prices)'
-          }
-        },
-        {
-          role: 'assistant',
-          type: 'steps',
-          title: 'Cooking steps scaled for 150 people:',
-          steps: [
-            'Parboil 15 kg of rice for 10 min, rinse & set aside.',
-            'Blend tomatoes, peppers & onions into smooth paste.',
-            'Heat 3L oil, fry blend for 20 min with spices.',
-            'Add 5L stock, season well.',
-            'Stir in rice, cover & steam till done (30-40 min).',
-            'Keep fluffing so it stays vibrant & not soggy.'
-          ]
-        }
-      ]
-    },
-    '2': {
-      id: '2',
-      title: 'Coconut Rice High Class Event',
-      updatedAt: new Date(Date.now() - 86400000),
-      messages: [
-        {
-          role: 'user',
-          content: 'I need to prepare coconut rice for a high class event'
-        },
-        {
-          role: 'assistant',
-          content: 'I\'ll help you prepare an elegant coconut rice dish for your high-class event.',
-          type: 'text'
-        },
-        {
-          role: 'assistant',
-          type: 'vendor_offer',
-          title: 'Want me to find vendors for you?',
-          points: [
-            'I can pull live quotes from 5 suppliers in your area.',
-            'Or help compare prices if you have a preferred market.'
-          ],
-          actionType: 'Find vendors for me'
-        }
-      ]
-    }
-  };
 };
 
-const detailedChatData = ref(loadDetailedChatData());
-
-// Save detailed chat data when it changes
-watch(detailedChatData, (newData) => {
-  if (process.client) {
-    try {
-      localStorage.setItem('maamaa_detailed_chats', JSON.stringify(newData.value));
-    } catch (error) {
-      console.error('Error saving detailed chat data to localStorage:', error);
-    }
-  }
-}, { deep: true });
+// Cache for loaded messages
+const chatMessagesCache = ref({});
 
 // Quick suggestions
 const suggestions = [
@@ -386,32 +323,66 @@ const handleShareMessage = (message) => {
   shareModalOpen.value = true;
 };
 
-const handleRetryMessage = (message) => {
+const handleRetryMessage = async (message) => {
   // Find the index of the message to retry
   const index = currentChat.value.messages.findIndex(m => m === message);
   if (index !== -1) {
-    // Remove all messages after this one
-    currentChat.value.messages = currentChat.value.messages.slice(0, index);
-    // Simulate generating a new response
-    loading.value = true;
-    setTimeout(() => {
-      currentChat.value.messages.push({
-        role: 'assistant',
-        content: `Here's a regenerated response to replace the previous one.`
-      });
-      loading.value = false;
-      scrollToBottom();
+    try {
+      // Remove all messages after this one in UI
+      currentChat.value.messages = currentChat.value.messages.slice(0, index);
       
-      // Save to detailed chat data
-      if (detailedChatData.value) {
-        detailedChatData.value[currentChat.value.id] = currentChat.value;
+      // Delete messages from database
+      const supabase = useSupabaseClient();
+      const chatId = currentChat.value.id;
+      
+      // First, get all messages for this chat
+      const { data: messages, error: fetchError } = await supabase
+        .from('chat_messages')
+        .select('id, created_at')
+        .eq('chat_id', chatId)
+        .order('created_at');
+        
+      if (fetchError) throw fetchError;
+      
+      // Find messages to delete (all messages after the index)
+      if (messages && messages.length > index) {
+        const messagesToDelete = messages.slice(index).map(m => m.id);
+        
+        // Delete the messages
+        if (messagesToDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('chat_messages')
+            .delete()
+            .in('id', messagesToDelete);
+            
+          if (deleteError) throw deleteError;
+        }
       }
       
-      // Update chat history in parent layout
-      if (chatData) {
-        chatData.updateChatHistory(currentChat.value);
-      }
-    }, 1000);
+      // Simulate generating a new response
+      loading.value = true;
+      setTimeout(async () => {
+        const newResponse = {
+          role: 'assistant',
+          content: `Here's a regenerated response to replace the previous one.`
+        };
+        
+        // Add to UI
+        currentChat.value.messages.push(newResponse);
+        loading.value = false;
+        scrollToBottom();
+        
+        // Save to database
+        await addMessageToChat(chatId, newResponse);
+        
+        // Update chat history in parent layout
+        if (chatData) {
+          chatData.updateChatHistory(currentChat.value);
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error handling retry:', error);
+    }
   }
 };
 
@@ -447,42 +418,68 @@ const handleShareToLinkedIn = () => {
   shareModalOpen.value = false;
 };
 
-const sendMessage = () => {
+// Add message to chat in database
+const addMessageToChat = async (chatId, message) => {
+  try {
+    const supabase = useSupabaseClient();
+    
+    const { error } = await supabase
+      .from('chat_messages')
+      .insert({
+        chat_id: chatId,
+        role: message.role,
+        content: message.content,
+        type: message.type || 'text',
+        metadata: message.type !== 'text' ? message : null
+      });
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error adding message to chat:', error);
+  }
+};
+
+const sendMessage = async () => {
   if (!newMessage.value.trim()) return;
   
   if (currentChat.value) {
-    currentChat.value.messages.push({
+    // Create user message
+    const userMessage = {
       role: 'user',
       content: newMessage.value
-    });
+    };
+    
+    // Add to UI
+    if (!currentChat.value.messages) {
+      currentChat.value.messages = [];
+    }
+    currentChat.value.messages.push(userMessage);
     
     // Update the chat's timestamp
     currentChat.value.updatedAt = new Date();
     
-    // Save to detailed chat data
-    if (detailedChatData.value) {
-      detailedChatData.value[currentChat.value.id] = currentChat.value;
-    }
+    // Save message to database
+    await addMessageToChat(currentChat.value.id, userMessage);
     
     // Update chat history in parent layout
     if (chatData) {
       chatData.updateChatHistory(currentChat.value);
     }
     
-    // Simulate response
+    // Simulate response (replace with actual AI response later)
     loading.value = true;
-    setTimeout(() => {
-      currentChat.value.messages.push({
+    setTimeout(async () => {
+      const assistantMessage = {
         role: 'assistant',
         content: `I've received your message: "${newMessage.value}". How can I assist you further?`
-      });
+      };
+      
+      currentChat.value.messages.push(assistantMessage);
       loading.value = false;
       scrollToBottom();
       
-      // Save to detailed chat data again
-      if (detailedChatData.value) {
-        detailedChatData.value[currentChat.value.id] = currentChat.value;
-      }
+      // Save assistant message to database
+      await addMessageToChat(currentChat.value.id, assistantMessage);
       
       // Update chat history in parent layout again
       if (chatData) {
@@ -495,29 +492,61 @@ const sendMessage = () => {
   }
 };
 
-const sendNewMessage = () => {
+// Create a new chat in the database
+const createNewChat = async (title, firstMessage) => {
+  try {
+    const supabase = useSupabaseClient();
+    
+    // Insert new chat
+    const { data: chatData, error: chatError } = await supabase
+      .from('chats')
+      .insert({
+        title,
+        user_id: authStore.user.id
+      })
+      .select()
+      .single();
+      
+    if (chatError) throw chatError;
+    
+    // Insert first message
+    const { error: messageError } = await supabase
+      .from('chat_messages')
+      .insert({
+        chat_id: chatData.id,
+        role: 'user',
+        content: firstMessage
+      });
+      
+    if (messageError) throw messageError;
+    
+    return {
+      id: chatData.id,
+      title: chatData.title,
+      updatedAt: new Date(chatData.updated_at),
+      messages: [
+        {
+          role: 'user',
+          content: firstMessage
+        }
+      ]
+    };
+  } catch (error) {
+    console.error('Error creating new chat:', error);
+    return null;
+  }
+};
+
+const sendNewMessage = async () => {
   if (!newChatMessage.value.trim()) return;
   
-  // Create a new chat
-  const newChat = {
-    id: Date.now().toString(),
-    title: newChatMessage.value,
-    updatedAt: new Date(),
-    messages: [
-      {
-        role: 'user',
-        content: newChatMessage.value
-      }
-    ]
-  };
+  // Create a new chat in the database
+  const newChat = await createNewChat(newChatMessage.value, newChatMessage.value);
+  
+  if (!newChat) return;
   
   // Set as current chat
   currentChat.value = newChat;
-  
-  // Save to detailed chat data
-  if (detailedChatData.value) {
-    detailedChatData.value[newChat.id] = newChat;
-  }
   
   // Update chat history in parent layout
   if (chatData) {
@@ -530,18 +559,18 @@ const sendNewMessage = () => {
   
   // Simulate response
   loading.value = true;
-  setTimeout(() => {
-    currentChat.value.messages.push({
+  setTimeout(async () => {
+    const assistantMessage = {
       role: 'assistant',
       content: `I'll help you with "${newChatMessage.value}". What specific details would you like to know?`
-    });
+    };
+    
+    currentChat.value.messages.push(assistantMessage);
     loading.value = false;
     scrollToBottom();
     
-          // Save to detailed chat data again
-      if (detailedChatData.value) {
-        detailedChatData.value[newChat.id] = currentChat.value;
-      }
+    // Save assistant message to database
+    await addMessageToChat(newChat.id, assistantMessage);
     
     // Update chat history in parent layout again
     if (chatData) {
@@ -557,30 +586,47 @@ const startChatWithSuggestion = (suggestion) => {
   sendNewMessage();
 };
 
-const loadChat = (chat) => {
-  // If we have detailed data for this chat, use it
-  if (detailedChatData.value && detailedChatData.value[chat.id]) {
-    currentChat.value = detailedChatData.value[chat.id];
-  } else {
-    // Otherwise use the chat as is
-    currentChat.value = chat;
-    
-    // Initialize messages array if it doesn't exist
-    if (!currentChat.value.messages) {
-      currentChat.value.messages = [];
-    }
-    
-    // Save this chat to detailed data for future use
-    if (detailedChatData.value) {
-      detailedChatData.value[chat.id] = currentChat.value;
-    }
+const loadChat = async (chat) => {
+  // If we already have messages loaded for this chat, use them
+  if (chatMessagesCache.value[chat.id]) {
+    currentChat.value = {
+      ...chat,
+      messages: chatMessagesCache.value[chat.id]
+    };
+    scrollToBottom();
+    return;
   }
   
-  scrollToBottom();
+  // Otherwise, load messages from the database
+  loading.value = true;
+  try {
+    const messages = await loadChatMessages(chat.id);
+    
+    // Update the current chat with messages
+    currentChat.value = {
+      ...chat,
+      messages
+    };
+    
+    // Cache the messages
+    chatMessagesCache.value[chat.id] = messages;
+    
+    loading.value = false;
+    scrollToBottom();
+  } catch (error) {
+    console.error('Error loading chat messages:', error);
+    loading.value = false;
+    
+    // Set empty messages array if there was an error
+    currentChat.value = {
+      ...chat,
+      messages: []
+    };
+  }
 };
 
 // Function to load chat from URL query parameters
-const loadChatFromUrlParams = () => {
+const loadChatFromUrlParams = async () => {
   const chatId = route.query.id;
   
   if (!chatId) {
@@ -589,56 +635,66 @@ const loadChatFromUrlParams = () => {
     return;
   }
   
-  // First check if we have detailed data for this chat
-  if (detailedChatData.value && detailedChatData.value[chatId]) {
-    currentChat.value = detailedChatData.value[chatId];
-    
-    // Also update the chat history in the layout
-    if (chatData) {
-      chatData.currentChatId = chatId;
-      chatData.updateChatHistory(currentChat.value);
-    }
-    return;
-  }
-  
-  // Next check if the chat is in the history
+  // Check if the chat is in the history
   if (chatData) {
     const chat = chatData.chatHistory.find(c => c.id === chatId);
     if (chat) {
-      loadChat(chat);
+      await loadChat(chat);
       return;
     }
   }
   
-  // If we get here, we have a chat ID but no data for it
-  // Let's create a placeholder chat with the ID
-  console.log('Creating placeholder chat for ID:', chatId);
-  const placeholderChat = {
-    id: chatId,
-    title: `Chat ${chatId}`,
-    updatedAt: new Date(),
-    messages: []
-  };
-  
-  currentChat.value = placeholderChat;
-  
-  // Update chat history in parent layout
-  if (chatData) {
-    chatData.currentChatId = chatId;
-    chatData.updateChatHistory(placeholderChat);
+  // If we get here, try to fetch the chat directly from the database
+  try {
+    const supabase = useSupabaseClient();
+    
+    // Get the chat
+    const { data: chat, error: chatError } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('id', chatId)
+      .single();
+      
+    if (chatError) throw chatError;
+    
+    if (chat) {
+      // Format the chat data
+      const formattedChat = {
+        id: chat.id,
+        title: chat.title,
+        updatedAt: new Date(chat.updated_at)
+      };
+      
+      // Load messages for this chat
+      await loadChat(formattedChat);
+      
+      // Update chat history in parent layout
+      if (chatData) {
+        chatData.currentChatId = chatId;
+        chatData.updateChatHistory(currentChat.value);
+      }
+    } else {
+      // Chat not found
+      currentChat.value = null;
+      router.replace('/chat');
+    }
+  } catch (error) {
+    console.error('Error loading chat:', error);
+    currentChat.value = null;
+    router.replace('/chat');
   }
 };
 
 // Watch for changes in route query parameters
-watch(() => route.query.id, (newChatId, oldChatId) => {
+watch(() => route.query.id, async (newChatId, oldChatId) => {
   // Only reload if the ID actually changed
   if (newChatId !== oldChatId) {
-    loadChatFromUrlParams();
+    await loadChatFromUrlParams();
   }
 }, { immediate: true });
 
 // Register this component with the layout
-onMounted(() => {
+onMounted(async () => {
   if (chatData) {
     // Register this component with the layout
     chatData.setChatPageInstance({
@@ -650,7 +706,7 @@ onMounted(() => {
     });
     
     // Load chat based on URL parameters
-    loadChatFromUrlParams();
+    await loadChatFromUrlParams();
   }
   
   // Scroll to bottom of messages if any
