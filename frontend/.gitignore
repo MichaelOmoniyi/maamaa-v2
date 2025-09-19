@@ -22,3 +22,13 @@ logs
 .env
 .env.*
 !.env.example
+
+
+#docs
+docs/
+
+#setup-supabase-storage.js
+setup-supabase-storage.js
+
+#supabase-setup.md
+supabase-setup.md
