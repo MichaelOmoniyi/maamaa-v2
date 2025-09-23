@@ -17,15 +17,15 @@
         <!-- Desktop Navigation -->
         <div class="flex space-x-8 items-center justify-end">
           <div class="hidden md:flex items-center justify-end space-x-8">
-            <NuxtLink to="/about" :class="route.path === '/inventory' ? 'text-dark-green hover:text-primary-green transition duration-200 font-medium' : 'text-white hover:text-light-green transition duration-200 font-medium'">About us</NuxtLink>
-            <NuxtLink to="/usecases" :class="route.path === '/inventory' ? 'text-dark-green hover:text-primary-green transition duration-200 font-medium' : 'text-white hover:text-light-green transition duration-200 font-medium'">Use cases</NuxtLink>
-            <NuxtLink to="/get-help" :class="route.path === '/inventory' ? 'text-dark-green hover:text-primary-green transition duration-200 font-medium' : 'text-white hover:text-light-green transition duration-200 font-medium'">Help</NuxtLink>
+            <NuxtLink to="/about" class="text-white hover:text-light-green transition duration-200 font-medium">About us</NuxtLink>
+            <NuxtLink to="/usecases" class="text-white hover:text-light-green transition duration-200 font-medium">Use cases</NuxtLink>
+            <NuxtLink to="/get-help" class="text-white hover:text-light-green transition duration-200 font-medium">Help</NuxtLink>
             <!-- <NuxtLink to="/pricing" class="text-white hover:text-light-green transition duration-200 font-medium">Pricing</NuxtLink> -->
             <!-- Authenticated User Links -->
             <template v-if="authStore.user">
-              <NuxtLink to="/chat" :class="route.path === '/inventory' ? 'text-dark-green hover:text-primary-green transition duration-200 font-medium' : 'text-white hover:text-light-green transition duration-200 font-medium'">Chat</NuxtLink>
+              <NuxtLink to="/chat" class="text-white hover:text-light-green transition duration-200 font-medium">Chat</NuxtLink>
               <!-- <NuxtLink to="/estimator" class="text-white hover:text-light-green transition duration-200 font-medium">Estimator</NuxtLink> -->
-              <NuxtLink to="/inventory" :class="route.path === '/inventory' ? 'text-dark-green hover:text-primary-green transition duration-200 font-medium' : 'text-white hover:text-light-green transition duration-200 font-medium'">Inventory</NuxtLink>
+              <NuxtLink to="/inventory" class="text-white hover:text-light-green transition duration-200 font-medium">Inventory</NuxtLink>
             </template>
           </div>
 
@@ -34,7 +34,7 @@
             <template v-if="authStore.user">
               <div class="relative" ref="userMenuContainer">
                 <button 
-                  :class="route.path === '/inventory' ? 'flex items-center text-dark-green hover:text-primary-green transition duration-200' : 'flex items-center text-white hover:text-light-green transition duration-200'"
+                  class="flex items-center text-white hover:text-light-green transition duration-200"
                   @click="userMenuOpen = !userMenuOpen"
                 >
                   <span class="mr-1">{{ authStore.user.user_metadata?.full_name || authStore.user.email }}</span>
@@ -74,7 +74,7 @@
         </div>
 
         <!-- Mobile menu button -->
-        <button :class="route.path === '/inventory' ? 'md:hidden text-dark-green focus:outline-none' : 'md:hidden text-white focus:outline-none'" @click="mobileMenuOpen = !mobileMenuOpen">
+        <button class="md:hidden text-white focus:outline-none" @click="mobileMenuOpen = !mobileMenuOpen">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path v-if="!mobileMenuOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -85,26 +85,25 @@
       <!-- Mobile Navigation Menu -->
       <div v-if="mobileMenuOpen" :class="[
         'md:hidden border-t',
-        route.path === '/inventory' ? 'bg-[#f1f9f4] border-gray-200' : 
         isScrolled ? 'bg-dark-green border-light-green/10' : 'bg-dark-green/90 backdrop-blur-sm border-light-green/10'
       ]">
         <div class="container mx-auto px-4 py-3 space-y-1">
-          <NuxtLink to="/about" :class="route.path === '/inventory' ? 'block py-2 text-dark-green hover:text-primary-green' : 'block py-2 text-white hover:text-light-green'">About us</NuxtLink>
-          <NuxtLink to="/usecases" :class="route.path === '/inventory' ? 'block py-2 text-dark-green hover:text-primary-green' : 'block py-2 text-white hover:text-light-green'">Use cases</NuxtLink>
-          <NuxtLink to="/get-help" :class="route.path === '/inventory' ? 'block py-2 text-dark-green hover:text-primary-green' : 'block py-2 text-white hover:text-light-green'">Help</NuxtLink>
+          <NuxtLink to="/about" class="block py-2 text-white hover:text-light-green">About us</NuxtLink>
+          <NuxtLink to="/usecases" class="block py-2 text-white hover:text-light-green">Use cases</NuxtLink>
+          <NuxtLink to="/get-help" class="block py-2 text-white hover:text-light-green">Help</NuxtLink>
           <!-- <NuxtLink to="/pricing" class="block py-2 text-white hover:text-light-green">Pricing</NuxtLink> -->
           <!-- Authenticated User Links -->
           <template v-if="authStore.user">
-            <NuxtLink to="/chat" :class="route.path === '/inventory' ? 'block py-2 text-dark-green hover:text-primary-green' : 'block py-2 text-white hover:text-light-green'">Chat</NuxtLink>
+            <NuxtLink to="/chat" class="block py-2 text-white hover:text-light-green">Chat</NuxtLink>
             <!-- <NuxtLink to="/estimator" class="block py-2 text-white hover:text-light-green">Estimator</NuxtLink> -->
-            <NuxtLink to="/inventory" :class="route.path === '/inventory' ? 'block py-2 text-dark-green hover:text-primary-green' : 'block py-2 text-white hover:text-light-green'">Inventory</NuxtLink>
+            <NuxtLink to="/inventory" class="block py-2 text-white hover:text-light-green">Inventory</NuxtLink>
           </template>
           <div class="pt-2">
             <template v-if="authStore.user">
-              <div :class="route.path === '/inventory' ? 'border-t border-gray-300 pt-2' : 'border-t border-gray-700 pt-2'">
-                <NuxtLink to="/profile" :class="route.path === '/inventory' ? 'block px-4 py-2 text-dark-green hover:text-primary-green' : 'block px-4 py-2 text-white hover:text-light-green'">Profile</NuxtLink>
+              <div class="border-t border-gray-700 pt-2">
+                <NuxtLink to="/profile" class="block px-4 py-2 text-white hover:text-light-green">Profile</NuxtLink>
                 <button 
-                  :class="route.path === '/inventory' ? 'w-full text-left px-4 py-2 text-dark-green hover:text-primary-green' : 'w-full text-left px-4 py-2 text-white hover:text-light-green'"
+                  class="w-full text-left px-4 py-2 text-white hover:text-light-green"
                   @click="logout"
                 >
                   Sign Out
