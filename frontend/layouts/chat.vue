@@ -9,7 +9,7 @@
     
     <!-- Sidebar -->
     <div
-      class="flex flex-col transition-all duration-300 h-full bg-[#f1f9f4] border-r border-gray-200 px-4 py-6 z-20"
+      class="flex flex-col transition-all duration-300 h-full bg-[#f1f9f4] border-r border-gray-200 px-4 py-6 z-20 box-border"
       :class="{ 
         'w-16': sidebarCollapsed, 
         'w-64': !sidebarCollapsed,
@@ -19,19 +19,19 @@
     >
       <div class="flex flex-col mb-4">
         <!-- Hamburger menu toggle -->
-        <button @click="toggleSidebar" class="focus:outline-none">
+        <button @click="toggleSidebar" class="flex focus:outline-none" :class="[sidebarCollapsed ? 'justify-center items-center' : 'justify-end items-center']">
           <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
       </div>
       <!-- New Chat Button -->
-      <div class="pr-4 py-10">
+      <div class="py-10" :class="[sidebarCollapsed ? 'pr-0' : 'pr-4']">
         <div
           @click="startNewChat"
-          class="flex items-center gap-2 cursor-pointer hover:bg-green-50 p-2 rounded-lg"
+          class="w-full flex items-center gap-2 cursor-pointer hover:bg-green-50 rounded-lg" :class="[sidebarCollapsed ? 'p-0 mb-4' : 'p-2']"
         >
-          <div class="flex items-center justify-center w-8 h-8 bg-green-600 rounded-full">
+          <div class="flex items-center justify-center w-8 h-8 bg-green-600 rounded-full" :class="{ 'p-2': sidebarCollapsed }">
             <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 4V20M4 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -40,6 +40,21 @@
             New Chat
           </p>
         </div>
+        
+        <!-- Inventory link for mobile screens -->
+        <NuxtLink 
+          to="/inventory" 
+          class="flex items-center w-full gap-2 cursor-pointer hover:bg-green-50 rounded-lg mt-2" :class="[sidebarCollapsed ? 'p-0 mb-2' : 'p-2']"
+        >
+          <div class="flex items-center justify-center w-8 h-8 bg-blue-600 rounded-full" :class="{ 'p-2': sidebarCollapsed }" >
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 7L12 3L4 7M20 7L12 11M20 7V17L12 21M12 11L4 7M12 11V21M4 7V17L12 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p v-if="!sidebarCollapsed" class="text-sm font-medium text-gray-800">
+            Inventory
+          </p>
+        </NuxtLink>
       </div>
 
       <!-- Recent Chats -->
@@ -80,7 +95,7 @@
     <div class="flex-1 flex flex-col overflow-hidden w-full">
       <!-- Top Bar -->
       <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 h-16">
-        <div class="flex items-center">
+        <div class="flex items-center space-x-6">
           <NuxtLink to="/">
             <img src="/images/logo-green.png" alt="MaaMaa" class="h-12 w-auto" />
           </NuxtLink>
@@ -88,14 +103,14 @@
 
         <div class="flex items-center space-x-4">
           <!-- Mobile sidebar toggle -->
-          <button 
+          <!-- <button 
             @click="toggleSidebar" 
             class="md:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-          </button>
+          </button> -->
 
           <!-- Notification Bell -->
           <button class="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
@@ -117,7 +132,7 @@
             </button>
 
             <!-- User Dropdown Menu -->
-            <div v-show="userMenuOpen" class="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-10">
+            <div v-show="userMenuOpen" class="absolute right-0 mt-6 w-64 bg-white rounded-lg shadow-lg overflow-hidden z-10">
               <!-- User Profile Section -->
               <div class="px-4 py-3 border-b border-gray-200">
                 <div class="flex items-center">
