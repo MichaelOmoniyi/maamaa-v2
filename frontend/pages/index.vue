@@ -312,6 +312,21 @@
 definePageMeta({
   layout: 'default'
 });
+
+// Handle password reset redirects when users land on home page with auth code
+const route = useRoute();
+const router = useRouter();
+
+onMounted(() => {
+  // Check if there's an auth code in the URL (from password reset email)
+  const code = route.query.code;
+  
+  if (code) {
+    console.log('Password reset code detected on home page, redirecting to reset password...');
+    // Redirect to reset password page with the code
+    router.push(`/reset-password?code=${code}`);
+  }
+});
 </script>
 
 <style scoped>

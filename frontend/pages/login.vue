@@ -64,9 +64,9 @@
                 </label>
               </div>
               <div>
-                <a href="#" class="text-sm text-primary-green hover:underline">
+                <NuxtLink to="/forgot-password" class="text-sm text-primary-green hover:underline">
                   Forgot Password?
-                </a>
+                </NuxtLink>
               </div>
             </div>
             <div class="flex items-center justify-center">

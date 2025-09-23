@@ -107,10 +107,42 @@ export const useAuthStore = defineStore("auth", {
 
       try {
         const supabase = useSupabaseClient();
+        
+        // Get the correct base URL for different environments
+        const baseUrl = process.client 
+          ? window.location.origin 
+          : (process.env.NODE_ENV === 'development' 
+            ? 'http://localhost:3000' 
+            : 'https://www.maamaa.live');
+
+        console.log('Reset password redirect URL:', `${baseUrl}/reset-password`);
 
         // Send password reset email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${baseUrl}/reset-password`,
+        });
+
+        if (error) throw error;
+
+        return { error: null };
+      } catch (error) {
+        this.error = error.message;
+        return { error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async updatePassword(newPassword) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const supabase = useSupabaseClient();
+
+        // Update the user's password
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
         });
 
         if (error) throw error;
