@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-50 min-h-screen py-8 md:py-12 pt-24 md:pt-24">
+  <div class="bg-gray-50 min-h-screen py-8">
     <div class="container mx-auto px-4">
       <!-- Header -->
       <div class="mb-8">
@@ -492,7 +492,7 @@
 <script setup>
 definePageMeta({
   middleware: 'auth',
-  layout: 'default'
+  layout: 'chat'
 });
 
 // Reactive data
