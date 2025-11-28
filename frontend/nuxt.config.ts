@@ -23,9 +23,8 @@ export default defineNuxtConfig({
       callback: '/confirm',
       exclude: ['/'],
     },
-    // Uncomment and update these with your Supabase credentials
-    // url: process.env.SUPABASE_URL || 'https://suqrahkqnegakajgeiuw.supabase.co',
-    // key: process.env.SUPABASE_KEY || 'your-anon-key',
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY,
     cookieOptions: {
       maxAge: 60 * 60 * 8, // 8 hours
       sameSite: 'lax',
