@@ -43,7 +43,6 @@ export const useAuthStore = defineStore("auth", {
 
       try {
         const supabase = useSupabaseClient();
-        console.log("Attempting to login with Supabase...");
 
         // Sign in the user with Supabase
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -52,17 +51,14 @@ export const useAuthStore = defineStore("auth", {
         });
 
         if (error) {
-          console.error("Supabase login error:", error);
           throw error;
         }
 
-        console.log("Login successful:", data);
         // Set the user in state
         this.user = data.user;
 
         return { data, error: null };
       } catch (error) {
-        console.error("Login error details:", error);
         // Provide more specific error messages
         if (error.message.includes("Invalid login credentials")) {
           this.error = "Invalid email or password. Please check your credentials.";
@@ -114,8 +110,6 @@ export const useAuthStore = defineStore("auth", {
           : (process.env.NODE_ENV === 'development' 
             ? 'http://localhost:3000' 
             : 'https://www.maamaa.live');
-
-        console.log('Reset password redirect URL:', `${baseUrl}/reset-password`);
 
         // Send password reset email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -169,7 +163,7 @@ export const useAuthStore = defineStore("auth", {
           this.user = session?.user || null;
         });
       } catch (error) {
-        console.error("Error initializing auth:", error);
+        // Silently handle auth initialization errors
       }
     },
   },
