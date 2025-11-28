@@ -90,11 +90,6 @@
             </p>
           </div>
           
-          <!-- Debug info for development - remove in production -->
-          <div v-if="debugInfo" class="mt-4 p-3 bg-gray-100 border border-gray-300 rounded text-xs">
-            <p class="font-bold">Debug Info:</p>
-            <pre>{{ debugInfo }}</pre>
-          </div>
         </div>
       </div>
     </div>
@@ -119,32 +114,24 @@ const form = reactive({
 
 const loading = ref(false);
 const error = ref('');
-const debugInfo = ref('');
 const showPassword = ref(false);
 
 const login = async () => {
   loading.value = true;
   error.value = '';
-  debugInfo.value = '';
 
   try {
-    console.log("Login attempt with:", form.email);
-    
     const { data, error: loginError } = await authStore.login(form.email, form.password);
     
     if (loginError) {
       error.value = loginError.message || 'Failed to login. Please check your credentials.';
-      debugInfo.value = JSON.stringify(loginError, null, 2);
       return;
     }
 
-    console.log("Login successful, redirecting to chat page");
-    // Login successful, redirect to chat page instead of home page
+    // Login successful, redirect to chat page
     router.push('/chat');
   } catch (e) {
-    console.error("Login error:", e);
     error.value = e.message || 'An error occurred during login.';
-    debugInfo.value = JSON.stringify(e, null, 2);
   } finally {
     loading.value = false;
   }
