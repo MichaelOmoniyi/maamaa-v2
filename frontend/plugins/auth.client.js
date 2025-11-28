@@ -17,17 +17,13 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     
     // Handle different auth events
     if (event === 'SIGNED_IN') {
-      console.log('User signed in');
       // If on login page, redirect to chat
       if (router.currentRoute.value.path === '/login') {
         router.push('/chat');
       }
     } else if (event === 'SIGNED_OUT') {
-      console.log('User signed out');
-      // Clear any cached data
+      // Clear any cached data and redirect to login
       if (process.client) {
-        // Don't delete localStorage data as it's now unused
-        // Just redirect to login
         router.push('/login');
       }
     }
