@@ -78,6 +78,141 @@ Built with **responsive design** to provide an optimal experience on both deskto
 - Environment variables for API security
 
 ---
-<!-- 
-## 📂 Project Structure
- -->
+
+## 🏗️ Architecture
+
+### System Overview
+MaaMaa follows a modern full-stack architecture with clear separation of concerns:
+
+- **Frontend**: Nuxt.js 3 with Vue 3 Composition API
+- **Backend**: Supabase (PostgreSQL + Auth + Storage)
+- **ML Layer**: Python-based AI integration for catering recommendations
+- **Deployment**: Vercel with custom domain
+
+### Database Schema
+```sql
+-- Core Tables
+- users (authentication via Supabase Auth)
+- chats (user conversation history)
+- chat_messages (individual messages with metadata)
+- inventory_items (user inventory management)
+```
+
+### API Endpoints
+- `/api/chat` - AI conversation handling
+- `/api/inventory` - Inventory management
+- `/api/auth` - Authentication flows
+- Supabase Edge Functions for ML integration
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.8+ (for ML components)
+- Supabase account
+- OpenAI API key
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/maamaa-v2.git
+cd maamaa-v2
+```
+
+2. **Frontend Setup**
+```bash
+cd frontend
+npm install
+```
+
+3. **Environment Configuration**
+```bash
+# Create .env file in frontend directory
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. **ML Engine Setup**
+```bash
+cd ../ml
+pip install -r requirements.txt
+# Add OPENAI_API_KEY to your environment
+```
+
+5. **Database Setup**
+```bash
+# Run the SQL migrations in your Supabase dashboard
+# See supabase/migrations/ for schema
+```
+
+6. **Start Development Server**
+```bash
+cd frontend
+npm run dev
+```
+
+## 🧪 Testing
+
+### Frontend Tests
+```bash
+cd frontend
+npm run test
+```
+
+### ML Engine Tests
+```bash
+cd ml
+python -m pytest tests/
+```
+
+## 📈 Performance Optimizations
+
+- **Image Optimization**: Lazy loading and WebP format support
+- **Caching**: Redis-based caching for AI responses
+- **Database**: Optimized queries with proper indexing
+- **CDN**: Static assets served via Vercel Edge Network
+
+## 🔒 Security Features
+
+- **Authentication**: Supabase Auth with JWT tokens
+- **Authorization**: Row-level security (RLS) policies
+- **Input Validation**: Comprehensive sanitization
+- **Rate Limiting**: API endpoint protection
+
+## 🌍 Deployment
+
+### Production Deployment
+1. **Vercel Deployment**
+```bash
+vercel --prod
+```
+
+2. **Environment Variables**
+Set production environment variables in Vercel dashboard
+
+3. **Domain Configuration**
+Configure custom domain (maamaa.live) in Vercel
+
+## 📊 Individual Contributions
+
+This project showcases several key technical implementations:
+
+### Core Features Implemented
+- **Real-time Chat System**: WebSocket-based chat with message persistence
+- **AI Integration**: Custom OpenAI integration with context-aware responses
+- **Inventory Management**: Full CRUD operations with image upload
+- **Authentication System**: Complete user auth flow with password reset
+- **Responsive Design**: Mobile-first UI with Tailwind CSS
+
+### Technical Challenges Solved
+- **State Management**: Complex state synchronization between chat and inventory
+- **File Upload**: Secure image upload to Supabase Storage with barcode generation
+- **Error Handling**: Comprehensive error boundaries and user feedback
+- **Performance**: Optimized rendering for large chat histories
+
+### Code Quality Improvements
+- **TypeScript Integration**: Type-safe development environment
+- **Component Architecture**: Reusable Vue 3 components with Composition API
+- **API Design**: RESTful API design with proper error responses
+- **Database Design**: Normalized schema with efficient relationships
