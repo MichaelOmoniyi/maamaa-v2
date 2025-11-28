@@ -206,6 +206,51 @@
       @share-x="handleShareToX"
       @share-linkedin="handleShareToLinkedIn"
     />
+    
+    <!-- Notification Modal -->
+    <div v-if="showNotificationModal" 
+         class="fixed top-4 right-4 z-50 max-w-sm">
+      <div class="bg-white rounded-lg shadow-lg border-l-4 p-4 transform transition-all" 
+           :class="{
+             'border-green-500': notificationType === 'success',
+             'border-red-500': notificationType === 'error',
+             'border-blue-500': notificationType === 'info'
+           }">
+        <div class="flex items-center">
+          <!-- Success Icon -->
+          <div v-if="notificationType === 'success'" class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <!-- Error Icon -->
+          <div v-if="notificationType === 'error'" class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          
+          <div class="ml-3 w-0 flex-1">
+            <p class="text-sm font-medium" 
+               :class="{
+                 'text-green-800': notificationType === 'success',
+                 'text-red-800': notificationType === 'error',
+                 'text-blue-800': notificationType === 'info'
+               }">
+              {{ notificationMessage }}
+            </p>
+          </div>
+          
+          <div class="ml-4 flex-shrink-0">
+            <button @click="closeNotification" class="text-gray-400 hover:text-gray-500">
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -244,6 +289,11 @@ const messagesContainer = ref(null);
 // Share modal state
 const shareModalOpen = ref(false);
 const messageToShare = ref(null);
+
+// Notification state
+const showNotificationModal = ref(false);
+const notificationMessage = ref('');
+const notificationType = ref('success');
 
 // Use the currentChat from the parent layout if available
 const currentChat = ref(null);
@@ -310,11 +360,11 @@ const scrollToBottom = () => {
 const handleCopyMessage = (message) => {
   navigator.clipboard.writeText(message.content)
     .then(() => {
-      // Could show a toast notification here
-      console.log('Message copied to clipboard');
+      // Show success feedback to user
+      showNotification('Message copied to clipboard!', 'success');
     })
     .catch(err => {
-      console.error('Failed to copy message:', err);
+      showNotification('Failed to copy message. Please try again.', 'error');
     });
 };
 
@@ -381,7 +431,7 @@ const handleRetryMessage = async (message) => {
         }
       }, 1000);
     } catch (error) {
-      console.error('Error handling retry:', error);
+      showNotification('Failed to regenerate response. Please try again.', 'error');
     }
   }
 };
@@ -393,11 +443,10 @@ const handleCopyLink = () => {
   navigator.clipboard.writeText(url)
     .then(() => {
       shareModalOpen.value = false;
-      // Could show a toast notification here
-      console.log('Link copied to clipboard');
+      showNotification('Link copied to clipboard!', 'success');
     })
     .catch(err => {
-      console.error('Failed to copy link:', err);
+      showNotification('Failed to copy link. Please try again.', 'error');
     });
 };
 
@@ -435,7 +484,7 @@ const addMessageToChat = async (chatId, message) => {
       
     if (error) throw error;
   } catch (error) {
-    console.error('Error adding message to chat:', error);
+    showNotification('Failed to save message. Please try again.', 'error');
   }
 };
 
@@ -717,4 +766,22 @@ onMounted(async () => {
 watch(() => currentChat.value?.messages?.length, () => {
   scrollToBottom();
 });
+
+// Notification functions
+const showNotification = (message, type = 'success') => {
+  notificationMessage.value = message;
+  notificationType.value = type;
+  showNotificationModal.value = true;
+  
+  // Auto-hide notification after 3 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      showNotificationModal.value = false;
+    }, 3000);
+  }
+};
+
+const closeNotification = () => {
+  showNotificationModal.value = false;
+};
 </script>

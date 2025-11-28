@@ -353,7 +353,7 @@ onMounted(() => {
 }
 
 .pasta {
-  background-image: url('/images/pasta-plate.png');
+  background-image: url('/images/pasta-plate-warm.png');
 }
 
 label {

@@ -314,6 +314,11 @@ definePageMeta({
 
 const authStore = useAuthStore();
 
+// Notification state
+const showNotificationModal = ref(false);
+const notificationMessage = ref('');
+const notificationType = ref('success');
+
 const tabs = [
   { id: 'profile', name: 'Profile' },
   { id: 'subscription', name: 'Subscription Plan' },
@@ -391,20 +396,81 @@ const kitchenData = computed(() => {
 
 // Edit Kitchen Profile
 const editKitchenProfile = () => {
-  // This would typically open a modal or navigate to an edit page
-  alert('Kitchen Profile editing is not yet implemented.');
+  // Navigate to kitchen profile editing page
+  router.push('/settings/kitchen-profile');
 };
 
 // Data & Privacy methods
+const showDeleteConfirmation = ref(false);
+const isDeleting = ref(false);
+
 const confirmDeleteData = () => {
-  if (confirm('Are you sure you want to delete all your data? This action cannot be undone.')) {
+  showDeleteConfirmation.value = true;
+};
+
+const executeDataDeletion = async () => {
+  isDeleting.value = true;
+  try {
     // Call API to delete user data
-    alert('Your data has been scheduled for deletion.');
+    const supabase = useSupabaseClient();
+    const { error } = await supabase.rpc('delete_user_data');
+    
+    if (error) throw error;
+    
+    showNotification('Your data has been scheduled for deletion.', 'success');
+    showDeleteConfirmation.value = false;
+  } catch (error) {
+    showNotification('Failed to delete data. Please try again.', 'error');
+  } finally {
+    isDeleting.value = false;
   }
 };
 
-const downloadUserData = () => {
-  // In a real app, this would trigger an API call to generate and download the data
-  alert('Your data export has been initiated. You will receive an email with the download link shortly.');
+const isExporting = ref(false);
+
+const downloadUserData = async () => {
+  isExporting.value = true;
+  try {
+    // Trigger API call to generate and download the data
+    const supabase = useSupabaseClient();
+    const { data, error } = await supabase.rpc('export_user_data');
+    
+    if (error) throw error;
+    
+    // Create and download the file
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `maamaa-data-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('Your data has been exported successfully!', 'success');
+  } catch (error) {
+    showNotification('Failed to export data. Please try again.', 'error');
+  } finally {
+    isExporting.value = false;
+  }
+};
+
+// Notification functions
+const showNotification = (message, type = 'success') => {
+  notificationMessage.value = message;
+  notificationType.value = type;
+  showNotificationModal.value = true;
+  
+  // Auto-hide notification after 3 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      showNotificationModal.value = false;
+    }, 3000);
+  }
+};
+
+const closeNotification = () => {
+  showNotificationModal.value = false;
 };
 </script>
