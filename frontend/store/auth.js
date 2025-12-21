@@ -103,13 +103,10 @@ export const useAuthStore = defineStore("auth", {
 
       try {
         const supabase = useSupabaseClient();
-        
+
         // Get the correct base URL for different environments
-        const baseUrl = process.client 
-          ? window.location.origin 
-          : (process.env.NODE_ENV === 'development' 
-            ? 'http://localhost:3000' 
-            : 'https://www.maamaa.live');
+        const baseUrl = process.env.BASE_URL ||
+          (process.client ? window.location.origin : 'http://localhost:3000');
 
         // Send password reset email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -152,9 +149,13 @@ export const useAuthStore = defineStore("auth", {
 
     // Initialize the auth state - call this when app starts
     async initAuth() {
-      const supabase = useSupabaseClient();
-
       try {
+        const supabase = useSupabaseClient();
+        if (!supabase) {
+          console.warn('Supabase client not available yet');
+          return;
+        }
+
         const { data } = await supabase.auth.getSession();
         this.user = data.session?.user || null;
 
@@ -164,6 +165,7 @@ export const useAuthStore = defineStore("auth", {
         });
       } catch (error) {
         // Silently handle auth initialization errors
+        console.error('Auth init error:', error);
       }
     },
   },

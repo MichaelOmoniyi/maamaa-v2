@@ -28,7 +28,7 @@ export default defineNuxtConfig({
     cookieOptions: {
       maxAge: 60 * 60 * 8, // 8 hours
       sameSite: 'lax',
-      secure: true
+      secure: process.env.NODE_ENV === 'production'
     }
   }
 })

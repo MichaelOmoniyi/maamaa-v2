@@ -47,25 +47,54 @@ const error = ref('');
 const success = ref(false);
 
 const route = useRoute();
-const { $supabase } = useNuxtApp();
+const router = useRouter();
+const supabase = useSupabaseClient();
 
 onMounted(async () => {
   try {
-    // Check if there's a hash in the URL (this happens when redirected after email confirmation)
+    // Check if there's a hash or query params in the URL (this happens when redirected after email confirmation)
     const hash = route.hash;
+    const queryParams = route.query;
     
-    if (hash) {
-      const { error: confirmError } = await $supabase.auth.onAuthStateChange((event) => {
+    // Handle token_hash based confirmation (newer Supabase flow)
+    if (queryParams.token_hash && queryParams.type) {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: queryParams.token_hash,
+        type: queryParams.type,
+      });
+      
+      if (verifyError) {
+        error.value = verifyError.message || 'Failed to verify your email.';
+      } else {
+        success.value = true;
+        // Redirect to chat after successful verification
+        setTimeout(() => {
+          router.push('/chat');
+        }, 2000);
+      }
+    } else if (hash) {
+      // Handle hash-based confirmation (older flow)
+      // Set up auth state listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN') {
           success.value = true;
+          subscription.unsubscribe();
+          // Redirect to chat after successful verification
+          setTimeout(() => {
+            router.push('/chat');
+          }, 2000);
         }
       });
       
-      if (confirmError) {
-        error.value = confirmError.message || 'Failed to verify your email.';
-      }
+      // Give it a moment to process the hash
+      setTimeout(() => {
+        if (!success.value) {
+          loading.value = false;
+        }
+      }, 3000);
+      return; // Don't set loading to false yet
     } else {
-      // If there's no hash, likely this is after registration but before confirmation
+      // If there's no hash or token, likely this is after registration but before confirmation
       error.value = 'Please check your email for a confirmation link.';
     }
   } catch (e) {
