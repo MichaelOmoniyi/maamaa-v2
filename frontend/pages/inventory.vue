@@ -695,7 +695,6 @@ const saveItem = async () => {
   
   closeModal();
   } catch (error) {
-    console.error('Error saving item:', error);
     showNotification(`Failed to save item: ${error.message || 'Unknown error'}. Please try again.`, 'error');
   }
 };
@@ -705,7 +704,6 @@ const deleteItem = async (itemId) => {
     try {
       await deleteItemFromSupabase(itemId);
     } catch (error) {
-      console.error('Error deleting item:', error);
       showNotification('Failed to delete item. Please try again.', 'error');
     }
   }
@@ -735,7 +733,6 @@ const openCamera = async () => {
       videoElement.value.srcObject = mediaStream;
     }
   } catch (error) {
-    console.error('Error accessing camera:', error);
     alert('Unable to access your camera. Please check permissions.');
   }
 };
@@ -833,7 +830,6 @@ const saveScannedItem = async () => {
     showNotification(`${newItem.name} has been added to your inventory!`, 'success');
     
   } catch (error) {
-    console.error('Error saving scanned item:', error);
     showNotification(`Failed to save item: ${error.message || 'Unknown error'}. Please try again.`, 'error');
   }
 };
@@ -883,7 +879,7 @@ const fetchInventoryItems = async () => {
     }));
     
   } catch (error) {
-    console.error('Error fetching inventory items:', error);
+    // Silently handle fetch errors
   }
 };
 
@@ -930,7 +926,6 @@ const saveItemToSupabase = async (item) => {
     await fetchInventoryItems();
     
   } catch (error) {
-    console.error('Error saving inventory item:', error);
     throw error;
   }
 };
@@ -950,7 +945,6 @@ const deleteItemFromSupabase = async (itemId) => {
     await fetchInventoryItems();
     
   } catch (error) {
-    console.error('Error deleting inventory item:', error);
     throw error;
   }
 };

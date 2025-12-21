@@ -208,7 +208,7 @@ const logout = async () => {
     mobileMenuOpen.value = false;
     router.push('/');
   } catch (error) {
-    console.error('Logout failed:', error);
+    // Silently handle logout errors
   }
 };
 

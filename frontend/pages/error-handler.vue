@@ -257,10 +257,6 @@ const submitErrorReport = async () => {
       userDescription: reportForm.value.description
     };
     
-    // Here you would typically send this to your error reporting service
-    // For now, we'll just log it and show a success message
-    console.log('Error report:', errorReport);
-    
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -272,15 +268,9 @@ const submitErrorReport = async () => {
     reportForm.value = { email: '', description: '' };
     
   } catch (err) {
-    console.error('Failed to submit error report:', err);
     alert('Failed to submit report. Please try again later.');
   } finally {
     isSubmittingReport.value = false;
   }
 };
-
-// Log error for debugging
-if (isDevelopment) {
-  console.error('Error page props:', props.error);
-}
 </script>

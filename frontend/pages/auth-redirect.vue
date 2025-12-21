@@ -65,19 +65,14 @@ onMounted(async () => {
     const code = route.query.code;
     
     if (code) {
-      console.log('Processing auth code:', code);
-      
       // Exchange the code for a session
       const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
       if (exchangeError) {
-        console.error('Error exchanging code:', exchangeError);
         error.value = 'Invalid or expired reset link. Please request a new password reset.';
         loading.value = false;
         return;
       }
-
-      console.log('Successfully exchanged code for session');
       
       // Wait a moment then redirect to reset password page
       setTimeout(() => {
@@ -90,7 +85,6 @@ onMounted(async () => {
     }
     
   } catch (e) {
-    console.error('Auth redirect error:', e);
     error.value = 'An error occurred processing your reset link. Please try again.';
     loading.value = false;
   }

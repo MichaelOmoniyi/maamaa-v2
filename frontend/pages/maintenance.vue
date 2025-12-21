@@ -194,14 +194,10 @@ const subscribeToUpdates = async () => {
     // Simulate API call to subscribe user
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Here you would typically call your backend API
-    console.log('Subscribing email for maintenance updates:', notificationEmail.value);
-    
     alert('Thank you! We\'ll notify you when we\'re back online.');
     notificationEmail.value = '';
     
   } catch (error) {
-    console.error('Failed to subscribe:', error);
     alert('Failed to subscribe. Please try again later.');
   } finally {
     isSubscribing.value = false;

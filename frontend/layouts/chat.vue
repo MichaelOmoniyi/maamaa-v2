@@ -309,7 +309,6 @@ const loadChatHistoryFromDatabase = async () => {
       user_id: chat.user_id
     })) || [];
   } catch (error) {
-    console.error('Error loading chat history:', error);
     return [];
   }
 };
@@ -404,7 +403,7 @@ const updateChatInDatabase = async (chat) => {
       
     if (error) throw error;
   } catch (error) {
-    console.error('Error updating chat:', error);
+    // Silently handle update errors
   }
 };
 
@@ -448,7 +447,6 @@ const logout = async () => {
     showLogoutModal.value = false;
     router.push('/login');
   } catch (error) {
-    console.error('Logout failed:', error);
     showLogoutModal.value = false;
   }
 };

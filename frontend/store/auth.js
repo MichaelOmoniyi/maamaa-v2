@@ -152,7 +152,6 @@ export const useAuthStore = defineStore("auth", {
       try {
         const supabase = useSupabaseClient();
         if (!supabase) {
-          console.warn('Supabase client not available yet');
           return;
         }
 
@@ -165,7 +164,6 @@ export const useAuthStore = defineStore("auth", {
         });
       } catch (error) {
         // Silently handle auth initialization errors
-        console.error('Auth init error:', error);
       }
     },
   },

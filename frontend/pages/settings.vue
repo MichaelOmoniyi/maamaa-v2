@@ -364,16 +364,10 @@ const editProfile = () => {
 
 const saveProfile = async () => {
   try {
-    // In a real app, this would call an API to update the user profile
-    // await authStore.updateProfile({
-    //   full_name: editableUserData.fullName,
-    //   phone: editableUserData.phone
-    // });
-    
+    // TODO: Implement profile update API call
     alert('Profile updated successfully!');
     isEditingProfile.value = false;
   } catch (error) {
-    console.error('Failed to update profile:', error);
     alert('Failed to update profile. Please try again.');
   }
 };

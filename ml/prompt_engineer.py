@@ -156,7 +156,7 @@ def run_prompt(prompt: str, model: str = "gpt-3.5-turbo") -> str:
         return f"Error: {str(e)}"
 
 if __name__ == "__main__":
-    # Example usage
+    # Example usage demonstrating the MaaMaaAI capabilities
     ai = MaaMaaAI()
     
     # Test catering plan generation
@@ -168,8 +168,8 @@ if __name__ == "__main__":
         dietary_restrictions=["vegetarian options"]
     )
     
-    print("Catering Plan:")
-    print(plan["content"])
+    logger.info("Catering Plan Generated:")
+    logger.info(plan["content"])
     
     # Test recipe scaling
     jollof_recipe = """
@@ -184,5 +184,5 @@ if __name__ == "__main__":
     """
     
     scaled = ai.scale_recipe(jollof_recipe, 10, 150)
-    print("\nScaled Recipe:")
-    print(scaled["content"])
+    logger.info("Scaled Recipe:")
+    logger.info(scaled["content"])

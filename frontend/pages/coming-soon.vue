@@ -276,9 +276,6 @@ const subscribeToUpdates = async () => {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Here you would typically call your backend API
-    console.log('Subscribing email for feature updates:', notificationEmail.value);
-    
     subscriptionMessage.value = 'Thank you! We\'ll notify you when this feature launches.';
     subscriptionSuccess.value = true;
     notificationEmail.value = '';
@@ -287,7 +284,6 @@ const subscribeToUpdates = async () => {
     subscriberCount.value += 1;
     
   } catch (error) {
-    console.error('Failed to subscribe:', error);
     subscriptionMessage.value = 'Failed to subscribe. Please try again later.';
     subscriptionSuccess.value = false;
   } finally {

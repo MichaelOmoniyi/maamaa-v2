@@ -170,8 +170,6 @@ const updatePassword = async () => {
   error.value = '';
 
   try {
-    console.log("Updating password...");
-    
     const { error: updateError } = await authStore.updatePassword(form.password);
     
     if (updateError) {
@@ -183,10 +181,8 @@ const updatePassword = async () => {
       return;
     }
 
-    console.log("Password updated successfully");
     passwordReset.value = true;
   } catch (e) {
-    console.error("Password update error:", e);
     error.value = e.message || 'Failed to update password. Please try again.';
   } finally {
     loading.value = false;
@@ -207,24 +203,18 @@ onMounted(async () => {
   
   if (code) {
     try {
-      console.log('Processing auth code from URL:', code);
-      
       // Exchange the code for a session
       const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
       if (exchangeError) {
-        console.error('Error exchanging code:', exchangeError);
         error.value = 'Invalid or expired reset link. Please request a new password reset.';
         return;
       }
-      
-      console.log('Successfully authenticated from reset link');
       
       // Remove the code from URL for cleaner experience
       await router.replace({ query: {} });
       
     } catch (e) {
-      console.error('Error processing auth code:', e);
       error.value = 'Error processing reset link. Please try again.';
     }
   }
@@ -233,7 +223,6 @@ onMounted(async () => {
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session) {
-    console.log("No session found");
     error.value = 'Your reset link has expired or is invalid. Please request a new password reset.';
   }
 });

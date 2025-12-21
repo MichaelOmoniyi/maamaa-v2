@@ -332,7 +332,6 @@ const loadChatMessages = async (chatId) => {
       };
     });
   } catch (error) {
-    console.error('Error loading chat messages:', error);
     return [];
   }
 };
@@ -581,7 +580,6 @@ const createNewChat = async (title, firstMessage) => {
       ]
     };
   } catch (error) {
-    console.error('Error creating new chat:', error);
     return null;
   }
 };
@@ -663,7 +661,6 @@ const loadChat = async (chat) => {
     loading.value = false;
     scrollToBottom();
   } catch (error) {
-    console.error('Error loading chat messages:', error);
     loading.value = false;
     
     // Set empty messages array if there was an error
@@ -728,7 +725,6 @@ const loadChatFromUrlParams = async () => {
       router.replace('/chat');
     }
   } catch (error) {
-    console.error('Error loading chat:', error);
     currentChat.value = null;
     router.replace('/chat');
   }

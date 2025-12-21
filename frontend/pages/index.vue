@@ -322,7 +322,6 @@ onMounted(() => {
   const code = route.query.code;
   
   if (code) {
-    console.log('Password reset code detected on home page, redirecting to reset password...');
     // Redirect to reset password page with the code
     router.push(`/reset-password?code=${code}`);
   }

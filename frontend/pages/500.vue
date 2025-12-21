@@ -174,8 +174,6 @@ const retryPage = async () => {
     // Try to reload the current page
     window.location.reload();
   } catch (error) {
-    console.error('Retry failed:', error);
-    
     // If retry fails and we haven't exceeded max attempts, start auto-retry again
     if (retryAttempts.value < maxRetryAttempts) {
       autoRetryCountdown.value = 30;

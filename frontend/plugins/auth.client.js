@@ -11,7 +11,6 @@ export default defineNuxtPlugin((nuxtApp) => {
     const supabase = useSupabaseClient();
     
     if (!supabase) {
-      console.error('Supabase client not available');
       return;
     }
 
@@ -20,7 +19,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       const { data } = await supabase.auth.getSession();
       authStore.user = data.session?.user || null;
     } catch (error) {
-      console.error('Error initializing auth:', error);
+      // Silently handle initialization errors
     }
 
     // Set up auth state change listener with Supabase directly

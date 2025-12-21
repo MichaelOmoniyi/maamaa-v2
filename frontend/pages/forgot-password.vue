@@ -103,8 +103,6 @@ const sendResetEmail = async () => {
   error.value = '';
 
   try {
-    console.log("Sending password reset email to:", email.value);
-    
     const { error: resetError } = await authStore.resetPassword(email.value);
     
     if (resetError) {
@@ -112,11 +110,9 @@ const sendResetEmail = async () => {
       return;
     }
 
-    console.log("Password reset email sent successfully");
     emailSent.value = true;
   } catch (e) {
-    console.error("Reset password error:", e);
-    error.value = e.message || 'An error occurred. Please try again.';
+    error.value = e.message || 'An error occurred. Please try again.'
   } finally {
     loading.value = false;
   }
