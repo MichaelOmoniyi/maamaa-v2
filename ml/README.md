@@ -1,13 +1,16 @@
-# MaaMaa AI Engine
+# MaaMaa AI prototype
 
-This directory contains the machine learning and AI components for the MaaMaa catering assistant.
+This directory contains a standalone Python prototype. It is not imported by
+the Nuxt application, deployed as a service, or connected to Supabase Edge
+Functions. The current product does not generate AI chat replies or catering
+plans.
 
-## Features
+## Prototype functions
 
-- **Catering Plan Generation**: AI-powered menu planning for African events
-- **Recipe Scaling**: Intelligent scaling of traditional recipes for different guest counts
-- **Cost Estimation**: Budget-aware menu suggestions with cost breakdowns
-- **Cultural Awareness**: Culturally-relevant dish suggestions and preparation methods
+The script has functions that send recipe or event prompts to an OpenAI chat
+completion model and return free-text output. It has not been evaluated for
+recipe accuracy, cultural coverage, quantity correctness, or price accuracy.
+Its output is a suggestion and is not authoritative catering or financial data.
 
 ## Setup
 
@@ -50,13 +53,18 @@ plan = ai.generate_catering_plan(
 print(plan["content"])
 ```
 
-## Integration with Frontend
+## Integration status
 
-The AI engine integrates with the Nuxt.js frontend through Supabase Edge Functions:
+There is no frontend integration or `/api/chat` endpoint in this repository.
+The Supabase `inventory-ai-data` function is separate legacy code and does not
+invoke this Python module. Treat both components as prototypes until an
+authenticated API contract, validated input/output schema, privacy review,
+timeouts, and repeatable tests are in place.
 
-1. Frontend sends requests to `/api/chat`
-2. Edge function calls the Python AI engine
-3. Structured responses are returned to the chat interface
+The prototype sends event and recipe input to an external model provider. Do not
+send real user data through it until that data flow has been reviewed and
+approved. Model output is unstructured suggestion text and must not be treated
+as verified quantities or prices.
 
 ## Model Configuration
 
@@ -64,10 +72,9 @@ The AI engine integrates with the Nuxt.js frontend through Supabase Edge Functio
 - **Secondary Model**: GPT-3.5-turbo for recipe scaling and simple queries
 - **Temperature**: 0.7 for creative menu suggestions, 0.3 for precise scaling
 
-## Error Handling
+## Error handling limits
 
-The AI engine includes comprehensive error handling:
-- API rate limiting
-- Fallback responses
-- Logging for debugging
-- Graceful degradation when AI services are unavailable
+The script catches provider exceptions, logs the exception message, and returns
+a generic fallback message. It does not currently implement explicit request
+timeouts, retry/backoff, rate limiting, structured output validation, or a
+secondary-model fallback. There is no automated test suite for this prototype.
