@@ -276,6 +276,7 @@ import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useAuthStore } from '~/store/auth';
 import MessageActions from '~/components/MessageActions.vue';
 import ShareOptions from '~/components/ShareOptions.vue';
+import { createChatRepository } from '~/services/chatRepository';
 
 definePageMeta({
   middleware: ['auth'],
@@ -283,6 +284,7 @@ definePageMeta({
 });
 
 const authStore = useAuthStore();
+const chatRepository = createChatRepository(useSupabaseClient());
 const router = useRouter();
 const route = useRoute();
 
@@ -327,40 +329,7 @@ const isPlaceholderAssistantMessage = (message) => {
 
 // Load detailed chat data from Supabase
 const loadChatMessages = async (chatId) => {
-  try {
-    const supabase = useSupabaseClient();
-    
-    // Get messages for this chat
-    const { data: messages, error: messagesError } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('chat_id', chatId)
-      .order('created_at');
-      
-    if (messagesError) throw messagesError;
-    
-    // Transform messages to match our expected format
-    return messages.map(msg => {
-      // For non-text messages, parse metadata
-      if (msg.type !== 'text' && msg.metadata) {
-        return {
-          ...msg.metadata,
-          role: msg.role,
-          content: msg.content,
-          type: msg.type
-        };
-      }
-      
-      // For text messages
-      return {
-        role: msg.role,
-        content: msg.content,
-        type: msg.type || 'text'
-      };
-    });
-  } catch (error) {
-    throw error;
-  }
+  return chatRepository.listMessages(chatId);
 };
 
 // Cache for loaded messages
@@ -437,19 +406,7 @@ const handleShareToLinkedIn = () => {
 // Add message to chat in database
 const addMessageToChat = async (chatId, message) => {
   try {
-    const supabase = useSupabaseClient();
-    
-    const { error } = await supabase
-      .from('chat_messages')
-      .insert({
-        chat_id: chatId,
-        role: message.role,
-        content: message.content,
-        type: message.type || 'text',
-        metadata: message.type !== 'text' ? message : null
-      });
-      
-    if (error) throw error;
+    await chatRepository.insertMessage(chatId, message);
     return true;
   } catch (error) {
     showNotification('Failed to save message. Please try again.', 'error');
@@ -504,36 +461,19 @@ const sendMessage = async () => {
 
 // Create a new chat in the database
 const createNewChat = async (title, firstMessage) => {
-  const supabase = useSupabaseClient();
   let chatData;
   try {
-    // Insert new chat
-    const { data, error: chatError } = await supabase
-      .from('chats')
-      .insert({
-        title,
-        user_id: authStore.user.id
-      })
-      .select()
-      .single();
-
-    if (chatError) throw chatError;
-    chatData = data;
+    chatData = await chatRepository.createChat(title, authStore.user.id);
   } catch (error) {
     return { error };
   }
 
   // Insert first message after the chat exists.
   try {
-    const { error: messageError } = await supabase
-      .from('chat_messages')
-      .insert({
-        chat_id: chatData.id,
-        role: 'user',
-        content: firstMessage
-      });
-
-    if (messageError) throw messageError;
+    await chatRepository.insertMessage(chatData.id, {
+      role: 'user',
+      content: firstMessage,
+    });
   } catch (error) {
     return { error, partialChatId: chatData.id };
   }
@@ -671,16 +611,7 @@ const loadChatFromUrlParams = async () => {
   
   // If we get here, try to fetch the chat directly from the database
   try {
-    const supabase = useSupabaseClient();
-    
-    // Get the chat
-    const { data: chat, error: chatError } = await supabase
-      .from('chats')
-      .select('*')
-      .eq('id', chatId)
-      .single();
-      
-    if (chatError) throw chatError;
+    const chat = await chatRepository.getChat(String(chatId));
     
     if (chat) {
       // Format the chat data

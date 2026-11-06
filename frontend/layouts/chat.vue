@@ -79,6 +79,9 @@
           <p v-else-if="chatHistoryError" class="px-3 py-2 text-xs text-red-700" role="alert" :title="sidebarCollapsed ? 'Chat history could not be loaded' : undefined" :aria-label="sidebarCollapsed ? 'Chat history could not be loaded' : undefined">
             {{ sidebarCollapsed ? '!' : 'Chat history could not be loaded. Try refreshing the page.' }}
           </p>
+          <p v-else-if="chatHistorySyncError" class="px-3 py-2 text-xs text-amber-800" role="status" :title="sidebarCollapsed ? 'Chat list may be out of date' : undefined" :aria-label="sidebarCollapsed ? 'Chat list may be out of date' : undefined">
+            {{ sidebarCollapsed ? '!' : 'Your note was saved, but the chat list may be out of date. Refresh to sync it.' }}
+          </p>
           <p v-else-if="!sidebarCollapsed && chatHistoryLoaded && chatHistory.length === 0" class="px-3 py-2 text-xs text-gray-500">
             No saved chats yet.
           </p>
@@ -237,8 +240,10 @@
 import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue';
 import { useAuthStore } from '~/store/auth';
 import LogoutModal from '~/components/LogoutModal.vue';
+import { createChatRepository } from '~/services/chatRepository';
 
 const authStore = useAuthStore();
+const chatRepository = createChatRepository(useSupabaseClient());
 const router = useRouter();
 
 // Logout modal state
@@ -338,6 +343,7 @@ const chatHistory = ref([]);
 const chatHistoryLoading = ref(false);
 const chatHistoryLoaded = ref(false);
 const chatHistoryError = ref(false);
+const chatHistorySyncError = ref(false);
 const currentChatId = ref(null);
 const currentChat = ref(null);
 
@@ -353,13 +359,7 @@ const loadChats = async () => {
   chatHistoryLoading.value = true;
   chatHistoryError.value = false;
   try {
-    const supabase = useSupabaseClient();
-    const { data, error } = await supabase
-      .from('chats')
-      .select('*')
-      .order('updated_at', { ascending: false });
-
-    if (error) throw error;
+    const data = await chatRepository.listChats();
     chatHistory.value = (data || []).map(chat => ({
       id: chat.id,
       title: chat.title,
@@ -367,6 +367,7 @@ const loadChats = async () => {
       user_id: chat.user_id
     }));
     chatHistoryLoaded.value = true;
+    chatHistorySyncError.value = false;
   } catch (error) {
     chatHistoryError.value = true;
     chatHistoryLoaded.value = false;
@@ -442,19 +443,12 @@ const chatPageInstance = ref(null);
 // Update chat in database
 const updateChatInDatabase = async (chat) => {
   try {
-    const supabase = useSupabaseClient();
-    const { error } = await supabase
-      .from('chats')
-      .upsert({
-        id: chat.id,
-        user_id: authStore.user.id,
-        title: chat.title,
-        updated_at: new Date().toISOString()
-      });
-      
-    if (error) throw error;
+    await chatRepository.upsertChat(chat, authStore.user.id);
+    chatHistorySyncError.value = false;
+    return true;
   } catch (error) {
-    // Silently handle update errors
+    chatHistorySyncError.value = true;
+    return false;
   }
 };
 
@@ -470,7 +464,7 @@ provide('chatData', {
   },
   updateChatHistory: async (updatedChat) => {
     // Update in database
-    await updateChatInDatabase(updatedChat);
+    const synced = await updateChatInDatabase(updatedChat);
     
     // Update in local state
     const index = chatHistory.value.findIndex(c => c.id === updatedChat.id);
@@ -479,6 +473,7 @@ provide('chatData', {
     } else {
       chatHistory.value.unshift(updatedChat);
     }
+    return synced;
   },
   resetCurrentChat: () => {
     currentChatId.value = null;

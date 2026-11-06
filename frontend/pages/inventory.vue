@@ -512,11 +512,14 @@
 
 <script setup>
 import { parseInventoryQuantities } from '~/utils/inventory-validation';
+import { createInventoryRepository } from '~/services/inventoryRepository';
 
 definePageMeta({
   middleware: 'auth',
   layout: 'chat'
 });
+
+const inventoryRepository = createInventoryRepository(useSupabaseClient());
 
 // Reactive data
 const showAddModal = ref(false);
@@ -766,26 +769,14 @@ const saveScannedItem = async () => {
   let uploadedImagePath = null;
 
   try {
-    const supabase = useSupabaseClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) throw userError;
-    if (!user) throw new Error('User not authenticated');
-    const imagePath = `${user.id}/${crypto.randomUUID()}.jpg`;
+    const userId = await inventoryRepository.getCurrentUserId();
+    const imagePath = `${userId}/${crypto.randomUUID()}.jpg`;
     uploadedImagePath = imagePath;
     
     // Convert base64 image to file
     const imageFile = await base64ToFile(capturedImage.value, `${barcodeValue.value}.jpg`);
     
-    // Upload to Supabase storage
-    const { error: imageError } = await supabase
-      .storage
-      .from('inventory_images')
-      .upload(imagePath, imageFile, {
-        contentType: 'image/jpeg',
-        upsert: false
-      });
-    
-    if (imageError) throw imageError;
+    await inventoryRepository.uploadImage(imagePath, imageFile);
     
     // Store the private object path; a short-lived signed URL is created when
     // inventory is loaded for display.
@@ -815,11 +806,7 @@ const saveScannedItem = async () => {
     let imageCleanupFailed = false;
     if (uploadedImagePath) {
       try {
-        const supabase = useSupabaseClient();
-        const { error: cleanupError } = await supabase.storage
-          .from('inventory_images')
-          .remove([uploadedImagePath]);
-        imageCleanupFailed = Boolean(cleanupError);
+        await inventoryRepository.removeImage(uploadedImagePath);
       } catch {
         imageCleanupFailed = true;
       }
@@ -865,36 +852,13 @@ const fetchInventoryItems = async () => {
   inventoryLoadError.value = '';
 
   try {
-    const supabase = useSupabaseClient();
-    
-    const { data, error } = await supabase
-      .from('inventory_items')
-      .select('*')
-      .order('updated_at', { ascending: false });
-      
-    if (error) throw error;
+    const items = await inventoryRepository.listItems();
 
     if (requestId !== inventoryRequestId) return false;
-    
-    // Update local state
-    inventoryItems.value = await Promise.all(data.map(async (item) => {
-      let imageUrl = '';
-      if (item.image_url) {
-        const { data: signedImage } = await supabase
-          .storage
-          .from('inventory_images')
-          .createSignedUrl(item.image_url, 60 * 60);
-        imageUrl = signedImage?.signedUrl || '';
-      }
-
-      return {
-        ...item,
-        imagePath: item.image_url || '',
-        imageUrl,
-        lastUpdated: new Date(item.updated_at),
-        quantity: parseFloat(item.quantity),
-        minQuantity: parseFloat(item.min_quantity || 0)
-      };
+    inventoryItems.value = items.map(item => ({
+      ...item,
+      quantity: Number(item.quantity),
+      minQuantity: Number(item.min_quantity || 0),
     }));
     return true;
   } catch (error) {
@@ -908,76 +872,12 @@ const fetchInventoryItems = async () => {
 };
 
 const saveItemToSupabase = async (item) => {
-  try {
-    const supabase = useSupabaseClient();
-    
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-    
-    // Convert to database format
-    const dbItem = {
-      user_id: user.id, // Add user_id field
-      name: item.name,
-      description: item.description || '',
-      category: item.category,
-      quantity: parseFloat(item.quantity),
-      unit: item.unit,
-      min_quantity: parseFloat(item.minQuantity) || 0,
-      status: item.status,
-      barcode: item.barcode || null,
-      image_url: item.imagePath || null
-    };
-    
-    if (item.id && typeof item.id === 'string') {
-      // Update existing item
-      const { error } = await supabase
-        .from('inventory_items')
-        .update(dbItem)
-        .eq('id', item.id);
-        
-      if (error) throw error;
-    } else {
-      // Insert new item
-      const { error } = await supabase
-        .from('inventory_items')
-        .insert(dbItem);
-        
-      if (error) throw error;
-    }
-    
-    // Refresh inventory items
-    await fetchInventoryItems();
-    
-  } catch (error) {
-    throw error;
-  }
+  await inventoryRepository.saveItem(item);
+  await fetchInventoryItems();
 };
 
 const deleteItemFromSupabase = async (itemId) => {
-  const supabase = useSupabaseClient();
-
-  const { data: item, error: lookupError } = await supabase
-    .from('inventory_items')
-    .select('image_url')
-    .eq('id', itemId)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
-
-  const { error: deleteError } = await supabase
-    .from('inventory_items')
-    .delete()
-    .eq('id', itemId);
-  if (deleteError) throw deleteError;
-
-  let imageCleanupFailed = false;
-  if (item?.image_url) {
-    const { error: storageError } = await supabase.storage
-      .from('inventory_images')
-      .remove([item.image_url]);
-    imageCleanupFailed = Boolean(storageError);
-  }
-
+  const imageCleanupFailed = await inventoryRepository.deleteItem(itemId);
   await fetchInventoryItems();
   return imageCleanupFailed;
 };
