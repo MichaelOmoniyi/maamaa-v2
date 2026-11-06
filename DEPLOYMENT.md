@@ -1,5 +1,7 @@
 # Deployment Guide - MaaMaa v2
 
+> **Supabase setup note:** The Supabase SQL and Storage setup examples in this older guide are superseded by [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) and `supabase/migrations/`. Use the migration as the schema source of truth for a fresh project. No remote project is linked or migrated yet.
+
 This guide covers deploying the MaaMaa application to production.
 
 ## 🚀 Quick Deploy

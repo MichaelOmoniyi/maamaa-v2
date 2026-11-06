@@ -1,7 +1,6 @@
-# 🥘 MaaMaa – AI-Powered African Event Catering Assistant
+# 🥘 MaaMaa – African Event Catering Planner
 
-**MaaMaa** is an **AI-powered web application** that helps African event planners, home cooks, and individuals plan catering for events with precision.  
-It eliminates the guesswork in estimating food quantities, provides culturally-relevant dish suggestions, and optimizes catering within a given budget.
+**MaaMaa** is a web application for African event planners, home cooks, and individuals planning event catering. Personalized menu recommendations and catering calculations are still in development.
 
 🌍 **Live Site:** [https://maamaa.live](https://maamaa.live)  
 📧 **Contact:** info@maamaa.live  
@@ -10,32 +9,23 @@ It eliminates the guesswork in estimating food quantities, provides culturally-r
 
 ## 📌 Features
 
-### **1. AI-Powered Catering Planning**
-- Generates **personalized dish suggestions** based on:
-  - Guest count
-  - Event type
-  - Budget
-  - Cuisine preferences
-  - Regional tastes
-- Calculates **accurate food quantity estimates** to reduce waste or shortage.
+### **1. Catering Estimate Preview**
+- Collects event details, guest count, budget, cuisine preferences, and dietary requirements.
+- Personalized menu recommendations, quantities, and prices are not currently generated.
 
 ### **2. User Authentication**
 - Secure **signup/login** system
 - Persistent session handling
 
-### **3. Chat Interface**
-- Real-time interaction with MaaMaa AI assistant
-- Regenerate or refine catering plans instantly
+### **3. Chat Notes**
+- Save notes to chat history.
+- AI replies and response regeneration are not currently connected.
 
 ### **4. Informational Pages**
 - Homepage
 - Pricing
 - FAQs
 - Settings
-
-### **5. Fully Deployed Production App**
-- Linked to a custom domain: **maamaa.live**
-- Professional email: **info@maamaa.live**
 
 ---
 
@@ -59,35 +49,31 @@ Built with **responsive design** to provide an optimal experience on both deskto
 
 ### **Frontend**
 - [Nuxt.js](https://nuxt.com/) – Vue.js framework for SSR and routing
-- [TypeScript](https://www.typescriptlang.org/) – Type safety
+- Vue 3 pages and components
 - [TailwindCSS](https://tailwindcss.com/) – Utility-first CSS framework
 
 ### **Backend**
-- Node.js + Express API
-- Authentication & authorization
-- Integration with **Deployed Model** for AI-driven recommendations
+- Supabase Auth, PostgreSQL, and Storage, accessed from the Nuxt frontend
+- No Express API or `/api/chat` endpoint is implemented in this repository
 
 ### **Machine Learning**
-- Custom ML logic for catering quantity estimation
-- Recipe/dish matching and classification based on event context
-- Python-based data preprocessing and model integration with backend API
+- `ml/prompt_engineer.py` is a standalone Python script and is not integrated with the Nuxt app
+- The script does not provide deployed catering estimates or chat responses
 
 ### **Deployment**
-- [Vercel](https://vercel.com/) for hosting and CI/CD
-- Custom domain setup
-- Environment variables for API security
+- Deployment instructions are provided in `DEPLOYMENT.md`; repository code alone does not establish current production status
 
 ---
 
 ## 🏗️ Architecture
 
 ### System Overview
-MaaMaa follows a modern full-stack architecture with clear separation of concerns:
+The tracked application code uses this architecture:
 
 - **Frontend**: Nuxt.js 3 with Vue 3 Composition API
-- **Backend**: Supabase (PostgreSQL + Auth + Storage)
-- **ML Layer**: Python-based AI integration for catering recommendations
-- **Deployment**: Vercel with custom domain
+- **Data services**: Supabase Auth, PostgreSQL, and Storage accessed through the frontend Supabase client
+- **Chat**: Notes are saved to Supabase chat history; no AI replies are generated
+- **Python**: The standalone script in `ml/` is not called by the Nuxt app
 
 ### Database Schema
 ```sql
@@ -98,19 +84,16 @@ MaaMaa follows a modern full-stack architecture with clear separation of concern
 - inventory_items (user inventory management)
 ```
 
-### API Endpoints
-- `/api/chat` - AI conversation handling
-- `/api/inventory` - Inventory management
-- `/api/auth` - Authentication flows
-- Supabase Edge Functions for ML integration
+### Data access
+- Authentication and application data are accessed through the Supabase client in the frontend.
+- No Express server or `/api/chat`, `/api/inventory`, or `/api/auth` route is implemented in the tracked application code.
+- The standalone Python script is not part of the chat or estimator request flow.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js 18+ and npm
-- Python 3.8+ (for ML components)
 - Supabase account
-- OpenAI API key
 
 ### Installation
 
@@ -133,20 +116,15 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-4. **ML Engine Setup**
+4. **Optional standalone Python script**
 ```bash
 cd ../ml
 pip install -r requirements.txt
-# Add OPENAI_API_KEY to your environment
+# This script is separate from the Nuxt application.
+# Configure OPENAI_API_KEY only if you choose to run it.
 ```
 
-5. **Database Setup**
-```bash
-# Run the SQL migrations in your Supabase dashboard
-# See supabase/migrations/ for schema
-```
-
-6. **Start Development Server**
+5. **Start Development Server**
 ```bash
 cd frontend
 npm run dev
@@ -154,65 +132,43 @@ npm run dev
 
 ## 🧪 Testing
 
-### Frontend Tests
+No automated test scripts are configured in the frontend package or standalone Python component. The frontend build can be run with:
 ```bash
 cd frontend
-npm run test
-```
-
-### ML Engine Tests
-```bash
-cd ml
-python -m pytest tests/
+npm run build
 ```
 
 ## 📈 Performance Optimizations
 
 - **Image Optimization**: Lazy loading and WebP format support
-- **Caching**: Redis-based caching for AI responses
-- **Database**: Optimized queries with proper indexing
-- **CDN**: Static assets served via Vercel Edge Network
+- **Database**: Application data is queried through Supabase; indexing and deployed performance are configuration-dependent.
 
 ## 🔒 Security Features
 
 - **Authentication**: Supabase Auth with JWT tokens
-- **Authorization**: Row-level security (RLS) policies
-- **Input Validation**: Comprehensive sanitization
-- **Rate Limiting**: API endpoint protection
+- **Authorization**: Data access is subject to the Supabase project's configured authorization policies; deployed policies are not established by this repository.
 
 ## 🌍 Deployment
 
-### Production Deployment
-1. **Vercel Deployment**
-```bash
-vercel --prod
-```
-
-2. **Environment Variables**
-Set production environment variables in Vercel dashboard
-
-3. **Domain Configuration**
-Configure custom domain (maamaa.live) in Vercel
+See `DEPLOYMENT.md` for deployment guidance. Current deployment status and production configuration are not established by the tracked application code.
 
 ## 📊 Individual Contributions
 
 This project showcases several key technical implementations:
 
 ### Core Features Implemented
-- **Real-time Chat System**: WebSocket-based chat with message persistence
-- **AI Integration**: Custom OpenAI integration with context-aware responses
+- **Chat Notes**: User notes are saved to chat history; AI replies and WebSocket chat are not implemented
 - **Inventory Management**: Full CRUD operations with image upload
 - **Authentication System**: Complete user auth flow with password reset
 - **Responsive Design**: Mobile-first UI with Tailwind CSS
 
 ### Technical Challenges Solved
-- **State Management**: Complex state synchronization between chat and inventory
-- **File Upload**: Secure image upload to Supabase Storage with barcode generation
-- **Error Handling**: Comprehensive error boundaries and user feedback
-- **Performance**: Optimized rendering for large chat histories
+- **State Management**: Vue state is used for chat and inventory interfaces
+- **File Upload**: Inventory images can be uploaded to Supabase Storage; barcode display is supported
+- **Error Handling**: Chat and inventory pages display errors for failed loads and saves
 
 ### Code Quality Improvements
-- **TypeScript Integration**: Type-safe development environment
+- **Nuxt Integration**: Vue pages and components use the Nuxt application structure
 - **Component Architecture**: Reusable Vue 3 components with Composition API
-- **API Design**: RESTful API design with proper error responses
+- **Supabase Access**: Frontend data operations use the Supabase client
 - **Database Design**: Normalized schema with efficient relationships

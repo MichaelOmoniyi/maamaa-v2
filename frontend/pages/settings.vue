@@ -336,9 +336,9 @@ const userData = computed(() => {
   const user = authStore.user || {};
   
   return {
-    fullName: user.user_metadata?.full_name || user.name || 'Snow Olohijere',
-    email: user.email || 'snow@gmail.com',
-    phone: user.user_metadata?.phone || '+234 801 383 7482'
+    fullName: user.user_metadata?.full_name || user.name || '',
+    email: user.email || '',
+    phone: user.user_metadata?.phone || ''
   };
 });
 
@@ -348,11 +348,12 @@ const editableUserData = reactive({
   phone: ''
 });
 
-// Initialize editable data with user data
-onMounted(() => {
-  editableUserData.fullName = userData.value.fullName;
-  editableUserData.phone = userData.value.phone;
-});
+// Keep profile fields in sync when the authenticated user becomes available.
+watch(userData, (data) => {
+  if (isEditingProfile.value) return;
+  editableUserData.fullName = data.fullName;
+  editableUserData.phone = data.phone;
+}, { immediate: true });
 
 // Profile editing methods
 const editProfile = () => {
@@ -362,14 +363,8 @@ const editProfile = () => {
   isEditingProfile.value = true;
 };
 
-const saveProfile = async () => {
-  try {
-    // TODO: Implement profile update API call
-    alert('Profile updated successfully!');
-    isEditingProfile.value = false;
-  } catch (error) {
-    alert('Failed to update profile. Please try again.');
-  }
+const saveProfile = () => {
+  showNotification('Profile updates are not connected yet. No changes were saved.', 'info');
 };
 
 const cancelEdit = () => {
@@ -377,8 +372,7 @@ const cancelEdit = () => {
 };
 
 const changePassword = () => {
-  // This would typically navigate to a password change page or open a modal
-  alert('Password change functionality is not yet implemented.');
+  showNotification('Password changes are not available from settings yet. Your password was not changed.', 'info');
 };
 
 // Kitchen Profile data
@@ -404,17 +398,34 @@ const confirmDeleteData = () => {
 
 const executeDataDeletion = async () => {
   isDeleting.value = true;
+  let databaseRowsDeleted = false;
   try {
-    // Call API to delete user data
     const supabase = useSupabaseClient();
-    const { error } = await supabase.rpc('delete_user_data');
+    const { data: imagePaths, error } = await supabase.rpc('delete_user_data');
     
     if (error) throw error;
+    databaseRowsDeleted = true;
+
+    // Storage objects must be removed through the Storage API. Chunk requests
+    // to stay within its per-request removal limit.
+    for (let index = 0; index < (imagePaths || []).length; index += 1000) {
+      const paths = imagePaths.slice(index, index + 1000);
+      const { error: storageError } = await supabase
+        .storage
+        .from('inventory_images')
+        .remove(paths);
+      if (storageError) throw storageError;
+    }
     
-    showNotification('Your data has been scheduled for deletion.', 'success');
+    showNotification('Your MaaMaa chat and inventory data has been deleted.', 'success');
     showDeleteConfirmation.value = false;
   } catch (error) {
-    showNotification('Failed to delete data. Please try again.', 'error');
+    showNotification(
+      databaseRowsDeleted
+        ? 'Your chat and inventory records were deleted, but some inventory images may remain. Please contact support for cleanup.'
+        : 'Failed to delete data. Please try again.',
+      'error'
+    );
   } finally {
     isDeleting.value = false;
   }

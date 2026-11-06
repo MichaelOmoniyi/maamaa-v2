@@ -87,7 +87,7 @@
       </div>
 
       <!-- Inventory Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div v-if="!inventoryLoading && !inventoryLoadError" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div class="bg-white rounded-xl shadow-md p-6">
           <div class="flex items-center justify-between">
             <div>
@@ -142,8 +142,23 @@
         </div>
       </div>
 
+      <div v-if="inventoryLoading" class="bg-white rounded-xl shadow-md p-8 text-center text-gray-600" role="status">
+        Loading your inventory…
+      </div>
+
+      <div v-else-if="inventoryLoadError" class="bg-white rounded-xl shadow-md p-8 text-center" role="alert">
+        <p class="font-medium text-red-700">We couldn’t load your inventory.</p>
+        <p class="mt-2 text-sm text-gray-600">{{ inventoryLoadError }}</p>
+        <button
+          @click="fetchInventoryItems"
+          class="mt-4 bg-primary-green hover:bg-dark-green text-white px-4 py-2 rounded-lg font-medium"
+        >
+          Try again
+        </button>
+      </div>
+
       <!-- Inventory Table -->
-      <div class="bg-white rounded-xl shadow-md overflow-hidden">
+      <div v-else class="bg-white rounded-xl shadow-md overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -223,10 +238,15 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4-8-4m16 0v10l-8 4-8-4V7" />
           </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-          <p class="mt-1 text-sm text-gray-500">Get started by adding your first inventory item.</p>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">
+            {{ inventoryItems.length === 0 ? 'Your inventory is empty' : 'No items found' }}
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            {{ inventoryItems.length === 0 ? 'Add an item to start tracking your stock.' : 'Try changing your search or filters.' }}
+          </p>
           <div class="mt-6">
             <button 
+              v-if="inventoryItems.length === 0"
               @click="showAddModal = true"
               class="bg-primary-green hover:bg-dark-green text-white px-4 py-2 rounded-lg font-medium transition duration-200"
             >
@@ -528,64 +548,9 @@ const itemForm = ref({
   imageUrl: ''
 });
 
-// Sample inventory data - replace with actual API calls
-const inventoryItems = ref([
-  {
-    id: 1,
-    name: 'Scotch Bonnet Peppers',
-    description: 'Hot peppers for spicing dishes',
-    category: 'spices',
-    quantity: 2.5,
-    unit: 'kg',
-    minQuantity: 1,
-    status: 'in-stock',
-    lastUpdated: new Date('2025-01-15')
-  },
-  {
-    id: 2,
-    name: 'Palm Oil',
-    description: 'Red palm oil for cooking',
-    category: 'spices',
-    quantity: 0.5,
-    unit: 'bottles',
-    minQuantity: 2,
-    status: 'low-stock',
-    lastUpdated: new Date('2025-01-14')
-  },
-  {
-    id: 3,
-    name: 'Rice (Jollof)',
-    description: 'Long grain rice for jollof',
-    category: 'grains',
-    quantity: 0,
-    unit: 'bags',
-    minQuantity: 2,
-    status: 'out-of-stock',
-    lastUpdated: new Date('2025-01-13')
-  },
-  {
-    id: 4,
-    name: 'Chicken',
-    description: 'Fresh whole chicken',
-    category: 'proteins',
-    quantity: 15,
-    unit: 'pieces',
-    minQuantity: 5,
-    status: 'in-stock',
-    lastUpdated: new Date('2025-01-16')
-  },
-  {
-    id: 5,
-    name: 'Tomatoes',
-    description: 'Fresh tomatoes for stew',
-    category: 'vegetables',
-    quantity: 3,
-    unit: 'kg',
-    minQuantity: 2,
-    status: 'in-stock',
-    lastUpdated: new Date('2025-01-15')
-  }
-]);
+const inventoryItems = ref([]);
+const inventoryLoading = ref(true);
+const inventoryLoadError = ref('');
 
 // Computed properties
 const filteredItems = computed(() => {
@@ -783,31 +748,32 @@ const generateBarcodeImage = async (value) => {
 
 const saveScannedItem = async () => {
   if (!scannedItemName.value) return;
-  
+  let uploadedImagePath = null;
+
   try {
     const supabase = useSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error('User not authenticated');
+    const imagePath = `${user.id}/${crypto.randomUUID()}.jpg`;
+    uploadedImagePath = imagePath;
     
     // Convert base64 image to file
     const imageFile = await base64ToFile(capturedImage.value, `${barcodeValue.value}.jpg`);
     
     // Upload to Supabase storage
-    const { data: imageData, error: imageError } = await supabase
+    const { error: imageError } = await supabase
       .storage
       .from('inventory_images')
-      .upload(`${barcodeValue.value}.jpg`, imageFile, {
+      .upload(imagePath, imageFile, {
         contentType: 'image/jpeg',
-        upsert: true
+        upsert: false
       });
     
     if (imageError) throw imageError;
     
-    // Get public URL for the uploaded image
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('inventory_images')
-      .getPublicUrl(`${barcodeValue.value}.jpg`);
-    
-    // Create inventory item with barcode and image URL
+    // Store the private object path; a short-lived signed URL is created when
+    // inventory is loaded for display.
     const newItem = {
       name: scannedItemName.value,
       description: `Scanned item: ${scannedItemName.value}`,
@@ -817,11 +783,12 @@ const saveScannedItem = async () => {
       minQuantity: 0,
       status: 'in-stock',
       barcode: barcodeValue.value,
-      imageUrl: publicUrl
+      imagePath
     };
     
     // Save to Supabase database
     await saveItemToSupabase(newItem);
+    uploadedImagePath = null;
     
     // Close modal and reset
     closeCameraModal();
@@ -830,7 +797,24 @@ const saveScannedItem = async () => {
     showNotification(`${newItem.name} has been added to your inventory!`, 'success');
     
   } catch (error) {
-    showNotification(`Failed to save item: ${error.message || 'Unknown error'}. Please try again.`, 'error');
+    let imageCleanupFailed = false;
+    if (uploadedImagePath) {
+      try {
+        const supabase = useSupabaseClient();
+        const { error: cleanupError } = await supabase.storage
+          .from('inventory_images')
+          .remove([uploadedImagePath]);
+        imageCleanupFailed = Boolean(cleanupError);
+      } catch {
+        imageCleanupFailed = true;
+      }
+    }
+    showNotification(
+      imageCleanupFailed
+        ? 'The item could not be saved, and its uploaded image may remain in storage. Please contact support for cleanup.'
+        : `Failed to save item: ${error.message || 'Unknown error'}. Please try again.`,
+      'error'
+    );
   }
 };
 
@@ -859,7 +843,12 @@ watch(showCameraModal, (isOpen) => {
 });
 
 // Supabase integration functions
+let inventoryRequestId = 0;
 const fetchInventoryItems = async () => {
+  const requestId = ++inventoryRequestId;
+  inventoryLoading.value = true;
+  inventoryLoadError.value = '';
+
   try {
     const supabase = useSupabaseClient();
     
@@ -869,17 +858,37 @@ const fetchInventoryItems = async () => {
       .order('updated_at', { ascending: false });
       
     if (error) throw error;
+
+    if (requestId !== inventoryRequestId) return false;
     
     // Update local state
-    inventoryItems.value = data.map(item => ({
-      ...item,
-      lastUpdated: new Date(item.updated_at),
-      quantity: parseFloat(item.quantity),
-      minQuantity: parseFloat(item.min_quantity || 0)
+    inventoryItems.value = await Promise.all(data.map(async (item) => {
+      let imageUrl = '';
+      if (item.image_url) {
+        const { data: signedImage } = await supabase
+          .storage
+          .from('inventory_images')
+          .createSignedUrl(item.image_url, 60 * 60);
+        imageUrl = signedImage?.signedUrl || '';
+      }
+
+      return {
+        ...item,
+        imagePath: item.image_url || '',
+        imageUrl,
+        lastUpdated: new Date(item.updated_at),
+        quantity: parseFloat(item.quantity),
+        minQuantity: parseFloat(item.min_quantity || 0)
+      };
     }));
-    
+    return true;
   } catch (error) {
-    // Silently handle fetch errors
+    if (requestId !== inventoryRequestId) return false;
+    inventoryItems.value = [];
+    inventoryLoadError.value = error?.message || 'Check your connection and try again.';
+    return false;
+  } finally {
+    if (requestId === inventoryRequestId) inventoryLoading.value = false;
   }
 };
 
@@ -902,7 +911,7 @@ const saveItemToSupabase = async (item) => {
       min_quantity: parseFloat(item.minQuantity) || 0,
       status: item.status,
       barcode: item.barcode || null,
-      image_url: item.imageUrl || null
+      image_url: item.imagePath || null
     };
     
     if (item.id && typeof item.id === 'string') {

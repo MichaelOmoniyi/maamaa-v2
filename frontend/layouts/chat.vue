@@ -63,6 +63,15 @@
           <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Recent chats</h3>
         </div>
         <div class="space-y-1">
+          <p v-if="chatHistoryLoading" class="px-3 py-2 text-xs text-gray-500" role="status" :title="sidebarCollapsed ? 'Loading chat history' : undefined" :aria-label="sidebarCollapsed ? 'Loading chat history' : undefined">
+            {{ sidebarCollapsed ? '…' : 'Loading chat history…' }}
+          </p>
+          <p v-else-if="chatHistoryError" class="px-3 py-2 text-xs text-red-700" role="alert" :title="sidebarCollapsed ? 'Chat history could not be loaded' : undefined" :aria-label="sidebarCollapsed ? 'Chat history could not be loaded' : undefined">
+            {{ sidebarCollapsed ? '!' : 'Chat history could not be loaded. Try refreshing the page.' }}
+          </p>
+          <p v-else-if="!sidebarCollapsed && chatHistoryLoaded && chatHistory.length === 0" class="px-3 py-2 text-xs text-gray-500">
+            No saved chats yet.
+          </p>
           <div
             v-for="(chat, index) in chatHistory"
             :key="index"
@@ -291,36 +300,44 @@ const toggleUserMenu = () => {
 };
 
 // Chat state management
-const loadChatHistoryFromDatabase = async () => {
+const chatHistory = ref([]);
+const chatHistoryLoading = ref(false);
+const chatHistoryLoaded = ref(false);
+const chatHistoryError = ref(false);
+const currentChatId = ref(null);
+const currentChat = ref(null);
+
+// Load chat history when component mounts or user changes
+const loadChats = async () => {
+  if (!authStore.isLoggedIn) {
+    chatHistory.value = [];
+    chatHistoryLoaded.value = false;
+    chatHistoryError.value = false;
+    return;
+  }
+
+  chatHistoryLoading.value = true;
+  chatHistoryError.value = false;
   try {
     const supabase = useSupabaseClient();
     const { data, error } = await supabase
       .from('chats')
       .select('*')
       .order('updated_at', { ascending: false });
-      
+
     if (error) throw error;
-    
-    // Transform the data to match our expected format
-    return data.map(chat => ({
+    chatHistory.value = (data || []).map(chat => ({
       id: chat.id,
       title: chat.title,
       updatedAt: new Date(chat.updated_at),
       user_id: chat.user_id
-    })) || [];
+    }));
+    chatHistoryLoaded.value = true;
   } catch (error) {
-    return [];
-  }
-};
-
-const chatHistory = ref([]);
-const currentChatId = ref(null);
-const currentChat = ref(null);
-
-// Load chat history when component mounts or user changes
-const loadChats = async () => {
-  if (authStore.isLoggedIn) {
-    chatHistory.value = await loadChatHistoryFromDatabase();
+    chatHistoryError.value = true;
+    chatHistoryLoaded.value = false;
+  } finally {
+    chatHistoryLoading.value = false;
   }
 };
 
@@ -465,6 +482,8 @@ watch(() => authStore.user?.id, (newUserId) => {
     loadChats();
   } else {
     chatHistory.value = [];
+    chatHistoryLoaded.value = false;
+    chatHistoryError.value = false;
   }
 }, { immediate: true });
 
@@ -484,4 +503,4 @@ onUnmounted(() => {
 watch(() => router.currentRoute.value.path, () => {
   userMenuOpen.value = false;
 });
-</script> 
+</script>
