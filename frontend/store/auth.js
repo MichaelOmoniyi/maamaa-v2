@@ -1,5 +1,8 @@
 import { defineStore } from "pinia";
 
+const getAuthRedirectBaseUrl = () => process.env.BASE_URL ||
+  (process.client ? window.location.origin : 'http://localhost:3000');
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     loading: false,
@@ -20,6 +23,7 @@ export const useAuthStore = defineStore("auth", {
           email,
           password,
           options: {
+            emailRedirectTo: `${getAuthRedirectBaseUrl()}/confirm`,
             data: {
               full_name: name,
             },
@@ -104,13 +108,9 @@ export const useAuthStore = defineStore("auth", {
       try {
         const supabase = useSupabaseClient();
 
-        // Get the correct base URL for different environments
-        const baseUrl = process.env.BASE_URL ||
-          (process.client ? window.location.origin : 'http://localhost:3000');
-
         // Send password reset email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${baseUrl}/reset-password`,
+          redirectTo: `${getAuthRedirectBaseUrl()}/reset-password`,
         });
 
         if (error) throw error;

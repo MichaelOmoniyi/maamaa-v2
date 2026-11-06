@@ -18,10 +18,20 @@
       }"
     >
       <div class="flex flex-col mb-4">
-        <!-- Hamburger menu toggle -->
-        <button @click="toggleSidebar" class="flex focus:outline-none" :class="[sidebarCollapsed ? 'justify-center items-center' : 'justify-end items-center']">
-          <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        <button
+          type="button"
+          @click="toggleSidebar"
+          :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :aria-expanded="!sidebarCollapsed"
+          class="flex items-center focus:outline-none focus:ring-2 focus:ring-green-600 rounded"
+          :class="[sidebarCollapsed ? 'justify-center' : 'justify-end']"
+        >
+          <svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <rect x="3.5" y="4.5" width="17" height="15" rx="2" stroke-width="1.8" />
+            <path d="M9 5v14" stroke-width="1.8" />
+            <path v-if="sidebarCollapsed" d="m13 9 3 3-3 3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            <path v-else d="m15 9-3 3 3 3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
       </div>
@@ -122,12 +132,29 @@
           </button> -->
 
           <!-- Notification Bell -->
-          <button class="p-2 hover:bg-gray-100 rounded-full transition-colors relative">
-            <svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
-          </button>
+          <div class="relative notification-menu">
+            <button
+              type="button"
+              aria-label="Notifications"
+              aria-haspopup="true"
+              :aria-expanded="notificationsOpen"
+              @click="toggleNotifications"
+              class="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-600"
+            >
+              <svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+            <div
+              v-if="notificationsOpen"
+              class="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white p-4 shadow-lg z-30"
+              role="status"
+              aria-live="polite"
+            >
+              <p class="text-sm font-semibold text-gray-800">Notifications</p>
+              <p class="mt-2 text-sm text-gray-600">There are currently no notifications.</p>
+            </div>
+          </div>
 
           <!-- User Avatar -->
           <div class="relative user-menu">
@@ -221,6 +248,7 @@ const showLogoutModal = ref(false);
 const isMobile = ref(false);
 const sidebarCollapsed = ref(false);
 const userMenuOpen = ref(false);
+const notificationsOpen = ref(false);
 
 // Check if the screen is mobile size
 const checkMobileScreen = () => {
@@ -296,7 +324,13 @@ const userName = computed(() => {
 
 // Toggle user menu
 const toggleUserMenu = () => {
+  notificationsOpen.value = false;
   userMenuOpen.value = !userMenuOpen.value;
+};
+
+const toggleNotifications = () => {
+  userMenuOpen.value = false;
+  notificationsOpen.value = !notificationsOpen.value;
 };
 
 // Chat state management
@@ -471,8 +505,19 @@ const logout = async () => {
 // Close user menu when clicking outside
 const handleClickOutside = (event) => {
   const userMenu = document.querySelector('.user-menu');
+  const notificationMenu = document.querySelector('.notification-menu');
   if (userMenuOpen.value && userMenu && !userMenu.contains(event.target)) {
     userMenuOpen.value = false;
+  }
+  if (notificationsOpen.value && notificationMenu && !notificationMenu.contains(event.target)) {
+    notificationsOpen.value = false;
+  }
+};
+
+const handleKeydown = (event) => {
+  if (event.key === 'Escape') {
+    userMenuOpen.value = false;
+    notificationsOpen.value = false;
   }
 };
 
@@ -490,17 +535,20 @@ watch(() => authStore.user?.id, (newUserId) => {
 onMounted(() => {
   loadChats();
   document.addEventListener('click', handleClickOutside);
+  document.addEventListener('keydown', handleKeydown);
   checkMobileScreen(); // Set initial state on mount
   window.addEventListener('resize', checkMobileScreen); // Add event listener for resize
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  document.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('resize', checkMobileScreen); // Remove event listener for resize
 });
 
 // Close menus on route change
 watch(() => router.currentRoute.value.path, () => {
   userMenuOpen.value = false;
+  notificationsOpen.value = false;
 });
 </script>

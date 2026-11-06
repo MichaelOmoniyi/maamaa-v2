@@ -26,11 +26,11 @@
           <p class="text-gray-600 mb-8">Please enter your details to create an account.</p>
           
           <form @submit.prevent="register">
-            <div v-if="error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div v-if="error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded" role="alert" aria-live="assertive">
               {{ error }}
             </div>
             
-            <div v-if="successMessage" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            <div v-if="successMessage" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded" role="status" aria-live="polite">
               {{ successMessage }}
             </div>
             
@@ -175,24 +175,12 @@ const register = async () => {
       return;
     }
 
-    // Registration successful
-    successMessage.value = 'Registration successful! Kindly check your email for verification.';
-    
-    // Auto-login the user
-    const { error: loginError } = await authStore.login(form.email, form.password);
-    
-    if (loginError) {
-      // If login fails, still redirect to login page
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
+    if (data?.session) {
+      await router.push('/chat');
       return;
     }
-    
-    // If login successful, redirect to chat page after 2 seconds
-    setTimeout(() => {
-      router.push('/chat');
-    }, 3000);
+
+    successMessage.value = 'Account created. Follow the confirmation link in your email to finish signing in.';
     
   } catch (e) {
     error.value = e.message || 'An error occurred during registration.';

@@ -438,9 +438,10 @@
             <div class="flex space-x-3 pt-4">
               <button
                 type="submit"
+                :disabled="isSavingItem"
                 class="flex-1 bg-primary-green hover:bg-dark-green text-white py-2 rounded-lg font-medium transition duration-200"
               >
-                {{ editingItem ? 'Update Item' : 'Add Item' }}
+                {{ isSavingItem ? 'Saving…' : editingItem ? 'Update Item' : 'Add Item' }}
               </button>
               <button
                 type="button"
@@ -510,6 +511,8 @@
 </template>
 
 <script setup>
+import { parseInventoryQuantities } from '~/utils/inventory-validation';
+
 definePageMeta({
   middleware: 'auth',
   layout: 'chat'
@@ -518,6 +521,7 @@ definePageMeta({
 // Reactive data
 const showAddModal = ref(false);
 const editingItem = ref(null);
+const isSavingItem = ref(false);
 const searchQuery = ref('');
 const selectedCategory = ref('');
 const selectedStatus = ref('');
@@ -633,10 +637,17 @@ const closeModal = () => {
 };
 
 const saveItem = async () => {
+  if (isSavingItem.value) return;
+  const parsedQuantities = parseInventoryQuantities(itemForm.value.quantity, itemForm.value.minQuantity);
+  if (!parsedQuantities.valid) {
+    showNotification(parsedQuantities.error, 'error');
+    return;
+  }
+
   const newItem = {
     ...itemForm.value,
-    quantity: parseFloat(itemForm.value.quantity),
-    minQuantity: parseFloat(itemForm.value.minQuantity) || 0,
+    quantity: parsedQuantities.quantity,
+    minQuantity: parsedQuantities.minQuantity,
     lastUpdated: new Date()
   };
   
@@ -649,25 +660,29 @@ const saveItem = async () => {
     newItem.status = 'in-stock';
   }
   
+  isSavingItem.value = true;
   try {
-  if (editingItem.value) {
-    // Update existing item
+    if (editingItem.value) {
       await saveItemToSupabase({ ...newItem, id: editingItem.value.id });
-  } else {
-    // Add new item
+    } else {
       await saveItemToSupabase(newItem);
-  }
-  
-  closeModal();
+    }
+
+    closeModal();
   } catch (error) {
     showNotification(`Failed to save item: ${error.message || 'Unknown error'}. Please try again.`, 'error');
+  } finally {
+    isSavingItem.value = false;
   }
 };
 
 const deleteItem = async (itemId) => {
   if (window.confirm('Are you sure you want to delete this item?')) {
     try {
-      await deleteItemFromSupabase(itemId);
+      const imageCleanupFailed = await deleteItemFromSupabase(itemId);
+      if (imageCleanupFailed) {
+        showNotification('The item was deleted, but its photo could not be removed from storage.', 'error');
+      }
     } catch (error) {
       showNotification('Failed to delete item. Please try again.', 'error');
     }
@@ -940,22 +955,31 @@ const saveItemToSupabase = async (item) => {
 };
 
 const deleteItemFromSupabase = async (itemId) => {
-  try {
-    const supabase = useSupabaseClient();
-    
-    const { error } = await supabase
-      .from('inventory_items')
-      .delete()
-      .eq('id', itemId);
-      
-    if (error) throw error;
-    
-    // Refresh inventory items
-    await fetchInventoryItems();
-    
-  } catch (error) {
-    throw error;
+  const supabase = useSupabaseClient();
+
+  const { data: item, error: lookupError } = await supabase
+    .from('inventory_items')
+    .select('image_url')
+    .eq('id', itemId)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+
+  const { error: deleteError } = await supabase
+    .from('inventory_items')
+    .delete()
+    .eq('id', itemId);
+  if (deleteError) throw deleteError;
+
+  let imageCleanupFailed = false;
+  if (item?.image_url) {
+    const { error: storageError } = await supabase.storage
+      .from('inventory_images')
+      .remove([item.image_url]);
+    imageCleanupFailed = Boolean(storageError);
   }
+
+  await fetchInventoryItems();
+  return imageCleanupFailed;
 };
 
 // Fetch items when component mounts

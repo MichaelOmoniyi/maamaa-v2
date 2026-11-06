@@ -7,7 +7,7 @@
         </div>
         <div class="p-6">
           <form @submit.prevent="login">
-            <div v-if="error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div v-if="error" class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded" role="alert" aria-live="assertive">
               {{ error }}
             </div>
             
@@ -124,7 +124,7 @@ const login = async () => {
     const { data, error: loginError } = await authStore.login(form.email, form.password);
     
     if (loginError) {
-      error.value = loginError.message || 'Failed to login. Please check your credentials.';
+      error.value = authStore.error || loginError.message || 'Failed to login. Please check your credentials.';
       return;
     }
 

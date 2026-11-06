@@ -226,14 +226,14 @@
     
     <!-- Notification Modal -->
     <div v-if="showNotificationModal" 
-         class="fixed top-4 right-4 z-50 max-w-sm">
-      <div class="bg-white rounded-lg shadow-lg border-l-4 p-4 transform transition-all" 
+         class="fixed top-4 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm">
+      <div class="w-full bg-white rounded-lg shadow-lg border-l-4 p-4 transform transition-all"
            :class="{
              'border-green-500': notificationType === 'success',
              'border-red-500': notificationType === 'error',
              'border-blue-500': notificationType === 'info'
            }">
-        <div class="flex items-center">
+        <div class="flex items-start">
           <!-- Success Icon -->
           <div v-if="notificationType === 'success'" class="flex-shrink-0">
             <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -247,8 +247,8 @@
             </svg>
           </div>
           
-          <div class="ml-3 w-0 flex-1">
-            <p class="text-sm font-medium" 
+          <div class="ml-3 min-w-0 flex-1">
+            <p class="text-sm font-medium break-words"
                :class="{
                  'text-green-800': notificationType === 'success',
                  'text-red-800': notificationType === 'error',
@@ -259,7 +259,7 @@
           </div>
           
           <div class="ml-4 flex-shrink-0">
-            <button @click="closeNotification" class="text-gray-400 hover:text-gray-500">
+            <button @click="closeNotification" aria-label="Close notification" class="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-600 rounded">
               <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
