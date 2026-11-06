@@ -1,13 +1,25 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== 'production' },
   css: ['~/assets/css/tailwind.css'],
   modules: [
     '@nuxtjs/tailwindcss',
     '@pinia/nuxt',
     '@nuxtjs/supabase',
   ],
+  nitro: {
+    routeRules: {
+      '/**': {
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Permissions-Policy': 'camera=(self)',
+        },
+      },
+    },
+  },
   tailwindcss: {
     cssPath: '~/assets/css/tailwind.css',
     configPath: 'tailwind.config.js',

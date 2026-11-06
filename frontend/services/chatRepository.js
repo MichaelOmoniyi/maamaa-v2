@@ -1,18 +1,25 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Json } from '~/types/database.types';
+// @ts-check
 
-export type ChatMessage = {
-  role: 'user' | 'assistant';
-  content: string;
-  type?: string;
-  [key: string]: unknown;
-};
+/** @typedef {import('../types/database.types').Database} Database */
+/** @typedef {import('../types/database.types').Json} Json */
+/** @typedef {import('@supabase/supabase-js').SupabaseClient<Database>} TypedSupabaseClient */
 
-export type ChatListItem = Database['public']['Tables']['chats']['Row'];
+/**
+ * @typedef {object} ChatMessage
+ * @property {'user' | 'assistant'} role
+ * @property {string} content
+ * @property {string} [type]
+ * @property {unknown} [key]
+ */
 
-export function createChatRepository(supabase: SupabaseClient<Database>) {
+/**
+ * @typedef {Database['public']['Tables']['chats']['Row']} ChatListItem
+ */
+
+/** @param {TypedSupabaseClient} supabase */
+export function createChatRepository(supabase) {
   return {
-    async listChats(): Promise<ChatListItem[]> {
+    async listChats() {
       const { data, error } = await supabase
         .from('chats')
         .select('*')
@@ -22,7 +29,8 @@ export function createChatRepository(supabase: SupabaseClient<Database>) {
       return data ?? [];
     },
 
-    async getChat(chatId: string): Promise<ChatListItem> {
+    /** @param {string} chatId */
+    async getChat(chatId) {
       const { data, error } = await supabase
         .from('chats')
         .select('*')
@@ -33,7 +41,8 @@ export function createChatRepository(supabase: SupabaseClient<Database>) {
       return data;
     },
 
-    async listMessages(chatId: string): Promise<ChatMessage[]> {
+    /** @param {string} chatId */
+    async listMessages(chatId) {
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
@@ -66,8 +75,11 @@ export function createChatRepository(supabase: SupabaseClient<Database>) {
       });
     },
 
-    async insertMessage(chatId: string, message: ChatMessage): Promise<void> {
+    /** @param {string} chatId @param {ChatMessage} message */
+    async insertMessage(chatId, message) {
       const type = message.type || 'text';
+      /** @type {Json | null} */
+      const metadata = type !== 'text' ? /** @type {Json} */ (/** @type {unknown} */ (message)) : null;
       const { error } = await supabase
         .from('chat_messages')
         .insert({
@@ -75,13 +87,14 @@ export function createChatRepository(supabase: SupabaseClient<Database>) {
           role: message.role,
           content: message.content,
           type,
-          metadata: type !== 'text' ? message as unknown as Json : null,
+          metadata,
         });
 
       if (error) throw error;
     },
 
-    async createChat(title: string, userId: string): Promise<ChatListItem> {
+    /** @param {string} title @param {string} userId */
+    async createChat(title, userId) {
       const { data, error } = await supabase
         .from('chats')
         .insert({ title, user_id: userId })
@@ -92,7 +105,8 @@ export function createChatRepository(supabase: SupabaseClient<Database>) {
       return data;
     },
 
-    async upsertChat(chat: Pick<ChatListItem, 'id' | 'title'>, userId: string): Promise<void> {
+    /** @param {Pick<ChatListItem, 'id' | 'title'>} chat @param {string} userId */
+    async upsertChat(chat, userId) {
       const { error } = await supabase
         .from('chats')
         .upsert({

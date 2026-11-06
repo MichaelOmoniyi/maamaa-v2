@@ -1,40 +1,45 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '~/types/database.types';
+// @ts-check
 
-type InventoryRow = Database['public']['Tables']['inventory_items']['Row'];
+/** @typedef {import('../types/database.types').Database} Database */
+/** @typedef {import('@supabase/supabase-js').SupabaseClient<Database>} TypedSupabaseClient */
+/** @typedef {Database['public']['Tables']['inventory_items']['Row']} InventoryRow */
 
-export type InventoryWriteInput = {
-  id?: string;
-  name: string;
-  description?: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  minQuantity: number;
-  status: InventoryRow['status'];
-  barcode?: string | null;
-  imagePath?: string | null;
-};
+/**
+ * @typedef {object} InventoryWriteInput
+ * @property {string} [id]
+ * @property {string} name
+ * @property {string} [description]
+ * @property {string} category
+ * @property {number} quantity
+ * @property {string} unit
+ * @property {number} minQuantity
+ * @property {InventoryRow['status']} status
+ * @property {string | null} [barcode]
+ * @property {string | null} [imagePath]
+ */
 
-export type InventoryListItem = InventoryRow & {
-  imagePath: string;
-  imageUrl: string;
-  lastUpdated: Date;
-};
+/**
+ * @typedef {InventoryRow & {
+ *   imagePath: string;
+ *   imageUrl: string;
+ *   lastUpdated: Date;
+ * }} InventoryListItem
+ */
 
 const bucketName = 'inventory_images';
 const signedUrlLifetimeSeconds = 60 * 60;
 
-export function createInventoryRepository(supabase: SupabaseClient<Database>) {
+/** @param {TypedSupabaseClient} supabase */
+export function createInventoryRepository(supabase) {
   return {
-    async getCurrentUserId(): Promise<string> {
+    async getCurrentUserId() {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
       if (!user) throw new Error('User not authenticated');
       return user.id;
     },
 
-    async listItems(): Promise<InventoryListItem[]> {
+    async listItems() {
       const { data, error } = await supabase
         .from('inventory_items')
         .select('*')
@@ -60,12 +65,14 @@ export function createInventoryRepository(supabase: SupabaseClient<Database>) {
       }));
     },
 
-    async saveItem(item: InventoryWriteInput): Promise<void> {
+    /** @param {InventoryWriteInput} item */
+    async saveItem(item) {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user) throw new Error('User not authenticated');
 
-      const databaseItem: Database['public']['Tables']['inventory_items']['Insert'] = {
+      /** @type {Database['public']['Tables']['inventory_items']['Insert']} */
+      const databaseItem = {
         user_id: user.id,
         name: item.name,
         description: item.description ?? '',
@@ -85,19 +92,22 @@ export function createInventoryRepository(supabase: SupabaseClient<Database>) {
       if (error) throw error;
     },
 
-    async uploadImage(path: string, file: File): Promise<void> {
+    /** @param {string} path @param {File} file */
+    async uploadImage(path, file) {
       const { error } = await supabase.storage
         .from(bucketName)
         .upload(path, file, { contentType: 'image/jpeg', upsert: false });
       if (error) throw error;
     },
 
-    async removeImage(path: string): Promise<void> {
+    /** @param {string} path */
+    async removeImage(path) {
       const { error } = await supabase.storage.from(bucketName).remove([path]);
       if (error) throw error;
     },
 
-    async deleteItem(itemId: string): Promise<boolean> {
+    /** @param {string} itemId */
+    async deleteItem(itemId) {
       const { data: item, error: lookupError } = await supabase
         .from('inventory_items')
         .select('image_url')

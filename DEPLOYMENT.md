@@ -1,276 +1,95 @@
-# Deployment Guide - MaaMaa v2
+# MaaMaa deployment and operations
 
-> **Supabase setup note:** The Supabase SQL and Storage setup examples in this older guide are superseded by [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) and `supabase/migrations/`. Use the migration as the schema source of truth for a fresh project. No remote project is linked or migrated yet.
+This guide describes the current application, not planned services. MaaMaa is a Nuxt frontend backed by Supabase Auth, Postgres, and private Storage. The Python/OpenAI code in `ml/` is a standalone prototype; it is not connected to the app or deployed. There is no production deploy automation in this repository. The GitHub workflow runs checks only.
 
-This guide covers deploying the MaaMaa application to production.
+## Requirements and configuration
 
-## 🚀 Quick Deploy
+- Node.js 22 and npm.
+- A Supabase project with the repository migrations applied.
+- A Vercel project connected to this GitHub repository for hosted frontend deployment.
 
-### Prerequisites
-- Vercel account
-- Supabase account
-- OpenAI API key
-- Custom domain (optional)
+The frontend reads these variables from `frontend/.env` locally and from the deployment environment in Vercel:
 
-### 1. Supabase Setup
+| Variable | Purpose |
+| --- | --- |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Public anon/publishable key used by the frontend |
 
-1. Create a new Supabase project
-2. Run the database migrations:
-```sql
--- Create chats table
-CREATE TABLE chats (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  title TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+Never put a Supabase service-role key in frontend variables. The current app does not require an OpenAI key because AI responses are not integrated.
 
--- Create chat_messages table
-CREATE TABLE chat_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  chat_id UUID REFERENCES chats(id),
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-  content TEXT NOT NULL,
-  type TEXT DEFAULT 'text',
-  metadata JSONB,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+## Local setup and quality checks
 
--- Create inventory_items table
-CREATE TABLE inventory_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id),
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT NOT NULL,
-  quantity DECIMAL NOT NULL,
-  unit TEXT NOT NULL,
-  min_quantity DECIMAL DEFAULT 0,
-  status TEXT NOT NULL CHECK (status IN ('in-stock', 'low-stock', 'out-of-stock')),
-  barcode TEXT UNIQUE,
-  image_url TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
-
--- Create policies
-CREATE POLICY "Users can view own chats" ON chats FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own chats" ON chats FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own chats" ON chats FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own messages" ON chat_messages FOR SELECT USING (
-  EXISTS (SELECT 1 FROM chats WHERE chats.id = chat_messages.chat_id AND chats.user_id = auth.uid())
-);
-CREATE POLICY "Users can insert own messages" ON chat_messages FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM chats WHERE chats.id = chat_messages.chat_id AND chats.user_id = auth.uid())
-);
-
-CREATE POLICY "Users can view own inventory" ON inventory_items FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own inventory" ON inventory_items FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own inventory" ON inventory_items FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own inventory" ON inventory_items FOR DELETE USING (auth.uid() = user_id);
-```
-
-3. Create storage bucket for inventory images:
-
-### Option A: Using Supabase Dashboard (Recommended)
-
-1. Log in to your [Supabase Dashboard](https://app.supabase.com/)
-2. Select your project
-3. Navigate to "Storage" in the left sidebar
-4. Click "Create bucket"
-5. Enter the name `inventory_images`
-6. Set the bucket to private (recommended for security)
-7. Click "Create bucket"
-
-After creating the bucket, set up permissions:
-1. Navigate to "Storage" → "Policies"
-2. Select the `inventory_images` bucket
-3. Click "Add policies"
-4. Create the following policies:
-
-**Upload Policy:**
-- Policy name: "Users can upload own images"
-- Allowed operation: INSERT
-- Policy definition: `auth.uid()::text = (storage.foldername(name))[1]`
-
-**Read Policy:**
-- Policy name: "Users can view own images"
-- Allowed operation: SELECT
-- Policy definition: `auth.uid()::text = (storage.foldername(name))[1]`
-
-### Option B: Using SQL Commands
-
-```sql
--- Create storage bucket
-INSERT INTO storage.buckets (id, name, public) VALUES ('inventory_images', 'inventory_images', false);
-
--- Create storage policies
-CREATE POLICY "Users can upload own images" ON storage.objects FOR INSERT WITH CHECK (
-  bucket_id = 'inventory_images' AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
-CREATE POLICY "Users can view own images" ON storage.objects FOR SELECT USING (
-  bucket_id = 'inventory_images' AND auth.uid()::text = (storage.foldername(name))[1]
-);
-```
-
-### 2. Vercel Deployment
-
-1. Fork/clone the repository
-2. Connect to Vercel
-3. Set environment variables:
-```
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-OPENAI_API_KEY=your_openai_api_key
-```
-
-4. Deploy:
-```bash
-vercel --prod
-```
-
-### 3. Custom Domain Setup
-
-1. Add domain in Vercel dashboard
-2. Configure DNS records:
-```
-Type: A
-Name: @
-Value: 76.76.19.61
-
-Type: CNAME
-Name: www
-Value: cname.vercel-dns.com
-```
-
-## 🔧 Environment Configuration
-
-### Required Environment Variables
-
-#### Frontend (.env)
-```bash
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
-```
-
-#### ML Engine (.env)
-```bash
-OPENAI_API_KEY=sk-your_openai_key_here
-OPENAI_MODEL=gpt-4
-OPENAI_FALLBACK_MODEL=gpt-3.5-turbo
-```
-
-## 📊 Production Checklist
-
-### Security
-- [ ] Enable RLS on all tables
-- [ ] Configure proper CORS settings
-- [ ] Set up rate limiting
-- [ ] Enable SSL/HTTPS
-- [ ] Configure security headers
-
-### Performance
-- [ ] Enable Vercel Edge caching
-- [ ] Optimize images and assets
-- [ ] Configure CDN for static files
-- [ ] Set up database connection pooling
-- [ ] Enable gzip compression
-
-### Monitoring
-- [ ] Set up error tracking (Sentry)
-- [ ] Configure performance monitoring
-- [ ] Set up uptime monitoring
-- [ ] Enable logging and analytics
-- [ ] Configure backup strategies
-
-### Testing
-- [ ] Run production build locally
-- [ ] Test all authentication flows
-- [ ] Verify AI integration works
-- [ ] Test file upload functionality
-- [ ] Validate mobile responsiveness
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### Supabase Connection Issues
-```bash
-# Check environment variables
-echo $SUPABASE_URL
-echo $SUPABASE_ANON_KEY
-
-# Test connection
-curl -H "apikey: $SUPABASE_ANON_KEY" $SUPABASE_URL/rest/v1/
-```
-
-#### OpenAI API Issues
-```bash
-# Test API key
-curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-  https://api.openai.com/v1/models
-```
-
-#### Build Failures
-```bash
-# Clear cache and rebuild
-rm -rf .nuxt node_modules
-npm install
+```powershell
+cd frontend
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Set SUPABASE_URL and SUPABASE_ANON_KEY in frontend/.env
+npm ci
+npm run typecheck
+npm test
 npm run build
 ```
 
-## 📈 Scaling Considerations
+The `.env` file must remain untracked. `npm ci` installs the exact versions in `frontend/package-lock.json`. The GitHub Actions workflow runs the same checks and `npm audit --audit-level=high` on pull requests and pushes to `main`; it does not deploy.
 
-### Database Optimization
-- Add indexes for frequently queried columns
-- Implement connection pooling
-- Consider read replicas for high traffic
+## Database changes
 
-### Caching Strategy
-- Implement Redis for session storage
-- Cache AI responses for common queries
-- Use CDN for static assets
+Database schema and policy changes belong in `supabase/migrations/`. Review the SQL and confirm the linked project before applying any migration:
 
-### Load Balancing
-- Configure Vercel Edge Functions
-- Implement API rate limiting
-- Set up monitoring and alerting
-
-## 🔄 CI/CD Pipeline
-
-### GitHub Actions Example
-```yaml
-name: Deploy to Production
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test
-      - uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
-          vercel-args: '--prod'
+```powershell
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase migration list --linked
+npx supabase db push --dry-run
 ```
 
-This deployment guide ensures a smooth production deployment with proper security, performance, and monitoring configurations.
+Only after reviewing the proposed changes and confirming a current recovery point should an operator apply them with `npx supabase db push`. Never use `db reset` against a hosted project. Prefer additive, forward-fix migrations; an application rollback does not roll back a database migration.
+
+Use a separate Supabase project for preview or destructive tests. Configure Supabase Auth's Site URL and redirect allow-list for the actual production domain and the separate preview domain as appropriate.
+
+## Vercel release procedure
+
+1. Connect the repository to Vercel and set the Root Directory to `frontend`.
+2. Use Node.js 22. Set the install command to `npm ci` and build command to `npm run build`.
+3. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` for the intended Vercel environments. Preview deployments should use a disposable Supabase project, not production data.
+4. Open a pull request and wait for the GitHub CI checks. Deploy a Preview build and verify login, email confirmation, chat persistence, inventory CRUD, image upload and deletion, and two-account data isolation.
+5. Before a production release, verify the intended Supabase project and migration status. Apply a reviewed migration separately if one is required.
+6. Promote/deploy to Production through Vercel only after the preview checks pass. This repository does not automatically deploy production.
+7. Verify `/api/health/live` and `/api/health/ready` on the deployed domain. The readiness route checks Supabase Auth with a bounded request and returns only a status code, a stable error code, and a request ID.
+
+## Health checks and diagnostics
+
+- `GET /api/health/live` reports that the Nuxt process is responding. It does not depend on Supabase.
+- `GET /api/health/ready` checks configuration and Supabase Auth's health endpoint using only the public API key. It returns HTTP 503 for missing configuration, invalid configuration, timeouts, or dependency errors. It never returns credentials, database error text, or response bodies. This confirms Auth API reachability; it does not prove Postgres, Storage, RLS, or a user-authorized query is healthy.
+- API requests receive an `X-Request-Id` header. Server logs are JSON records containing a request ID, route group, method, status, and duration. Query strings, request bodies, headers, and dependency error text are not logged.
+- Check Vercel's function logs for correlated API requests. No external error-tracking or alerting service is configured. An uptime monitor can poll the readiness URL at a modest interval; do not poll it on every page view.
+
+Current local build baseline: the largest emitted client JavaScript chunk was 320.19 kB (107.78 kB gzip), and the Nitro server output totaled 3.57 MB (880 kB gzip). The full build succeeded outside the Windows sandbox using Node 24.21.0 and the installed Nuxt 3.17.5 dependency tree. The lockfile now resolves newer compatible dependencies, but the local `node_modules` tree was not replaced because an esbuild binary was locked; the GitHub workflow performs a clean install on Node 22, and its first run is still pending. This is a bundle-size measurement, not a before/after improvement or an end-to-end page-load measurement.
+
+If local Node reports certificate trust failures while reaching Supabase or npm, PowerShell can opt into the system CA store for that process with `$env:NODE_USE_SYSTEM_CA='1'` before starting the relevant command. This is a local machine setting, not a production variable.
+
+## Failure handling and recovery
+
+| Failure | User/system behavior | Safe response |
+| --- | --- | --- |
+| Supabase is unavailable or slow | Readiness returns 503 after at most 2.5 seconds; data pages should show an operation failure instead of success | Check Supabase status and Vercel logs using the request ID. Retry reads or user-confirmed actions after recovery; do not blindly replay writes. |
+| Session expired or invalid | Authenticated operations fail and the user must sign in again | Confirm the auth redirect configuration, then test a fresh session. Do not log tokens. |
+| Inventory row deleted but image cleanup fails | The row is removed; the UI reports that its photo may remain in Storage | Review the user's private object paths and clean up only after confirming ownership. The database and Storage are separate systems. |
+| Chat or message write partially fails | The UI reports the failed step and preserves a retry path where possible | Check the chat before retrying so a new chat/message is not duplicated. Repository writes do not automatically retry. |
+| Deployment build or smoke check fails | Keep the current production deployment serving users | Fix the change in a new commit or use Vercel's rollback to a known-good deployment; recheck environment variables after a rollback. |
+| Database migration fails | App and schema may be on different versions | Stop the release, retain logs, inspect migration history, and apply a reviewed forward fix. Do not reset or manually delete production data. |
+
+Vercel rollback restores an application deployment, not Supabase data or database schema. Review Vercel's [rollback behavior](https://vercel.com/docs/instant-rollback) before relying on it; environment-variable changes are not rolled back with an old build.
+
+## Backups and restore plan
+
+Backup availability for the current Supabase plan and the existence of any off-site export have not been verified. Confirm the plan and the Backup section in the Supabase Dashboard before treating database backups as active. Supabase's [backup guide](https://supabase.com/docs/guides/platform/backups) states that daily backups are available on Pro, Team, and Enterprise plans, with plan-dependent retention; Free projects should maintain their own exports. Database backups do **not** include Storage objects.
+
+Recommended operating procedure:
+
+1. Confirm the plan's backup schedule/retention and assign an owner to check backup status regularly.
+2. Keep a restricted, encrypted database export outside the Supabase project on a schedule that matches the agreed recovery target. Keep object/image backups separately; database metadata alone cannot restore deleted images.
+3. Keep migrations in Git and preserve the release commit associated with each schema version.
+4. For a restore, record the incident time and preserve available logs. Restore a database backup to a separate recovery project where feasible, apply or verify migrations, then check Auth, RLS, chat and inventory ownership, and Storage object availability.
+5. Point a staging deployment at the recovery project and run the signed-in smoke checks before changing production configuration. Do not overwrite the current project until recovered data is reviewed.
+
+Proposed starting targets for owner review—not configured service commitments—are an RPO of up to 24 hours and an RTO of one business day for this early-stage application. If that potential data loss or downtime is unacceptable, choose a tighter target and configure/price a matching backup strategy such as more frequent exports or Supabase PITR. A restore has not yet been exercised, so recovery remains unproven until a drill is completed.

@@ -11,8 +11,20 @@ repositories. It does not describe planned AI behavior as an available API.
   Supabase client.
 - Supabase Auth provides account and session operations. PostgreSQL tables,
   Row Level Security, RPCs, and Storage provide the application data API.
-- There is no tracked application HTTP server or `/api/chat` route.
+- Nitro exposes `/api/health/live` and `/api/health/ready` for operations. There is no tracked `/api/chat`, `/api/inventory`, or other server proxy for user data.
 - `ml/prompt_engineer.py` is standalone and is not called by the frontend.
+
+## Operational endpoints
+
+| Endpoint | Success | Failure | Scope |
+| --- | --- | --- | --- |
+| `GET /api/health/live` | HTTP 200 `{ status: "live", requestId }` | Framework-level failure if Nuxt cannot respond | Process liveness only; no dependency calls |
+| `GET /api/health/ready` | HTTP 200 `{ status: "ready", dependencies: { supabase: "ok" }, requestId }` | HTTP 503 with a stable `code` and `requestId` | Configuration and Supabase Auth health endpoint with a 2.5-second timeout |
+
+API requests receive an `X-Request-Id` header. Server logs record a JSON request
+summary with a route group, method, status, and duration. They omit request
+bodies, query strings, tokens, and upstream response text. Readiness does not
+check Postgres, Storage, RLS, or a signed-in data query.
 
 ## Authentication
 
@@ -80,11 +92,17 @@ idempotent; duplicate-submit guards exist for chat sending and inventory saves.
 Image uploads use unique paths with `upsert: false` to avoid overwriting an
 existing object.
 
-## Not an active API
+The health readiness handler maps missing or invalid configuration, timeouts,
+and dependency failures to stable response codes. It does not return upstream
+error messages. The current request logger provides API timing and status
+signals; browser-to-Supabase data requests do not pass through Nitro and are not
+centrally measured by this logger.
 
-`supabase/functions/inventory-ai-data` is not called by the frontend. It calls
-`get_anonymized_inventory_data`, which is not defined in the tracked migration,
-and uses a custom `x-api-key` check. Do not deploy or connect it as-is. Any future
-AI endpoint needs a separately reviewed authentication, input/output schema,
-privacy, timeout, and error contract. The Python module is likewise standalone.
+## No active AI API
+
+There is no application AI API. A legacy, uncalled Supabase function that
+referenced an undefined RPC was removed during final cleanup after a read-only
+remote inventory confirmed that no Edge Functions were deployed. The Python
+module is standalone. Any future AI endpoint needs a separately reviewed
+authentication, input/output schema, privacy, timeout, and error contract.
 

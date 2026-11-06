@@ -391,7 +391,7 @@ const handleShareToX = () => {
   const url = `${window.location.origin}/chat?id=${chatId}`;
   const text = `Check out this conversation about ${currentChat.value.title} on MaaMaa!`;
   const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-  window.open(shareUrl, '_blank');
+  window.open(shareUrl, '_blank', 'noopener,noreferrer');
   shareModalOpen.value = false;
 };
 
@@ -399,7 +399,7 @@ const handleShareToLinkedIn = () => {
   const chatId = currentChat.value.id;
   const url = `${window.location.origin}/chat?id=${chatId}`;
   const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-  window.open(shareUrl, '_blank');
+  window.open(shareUrl, '_blank', 'noopener,noreferrer');
   shareModalOpen.value = false;
 };
 

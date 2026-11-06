@@ -14,16 +14,22 @@ Its output is a suggestion and is not authoritative catering or financial data.
 
 ## Setup
 
+Run the following commands from this directory:
+
 1. Install dependencies:
 ```bash
+python -m venv .venv
+# Activate .venv using your operating system's command.
 pip install -r requirements.txt
 ```
 
-2. Set up environment variables:
-```bash
-cp .env.example .env
-# Add your OpenAI API key to .env
+2. Create an ignored `ml/.env` file with the key for this standalone experiment:
+```dotenv
+OPENAI_API_KEY=<your-key>
 ```
+
+Keep the real key local and do not commit or paste it into the frontend. The
+root `.gitignore` ignores `.env` files.
 
 3. Run the example:
 ```bash
@@ -56,8 +62,9 @@ print(plan["content"])
 ## Integration status
 
 There is no frontend integration or `/api/chat` endpoint in this repository.
-The Supabase `inventory-ai-data` function is separate legacy code and does not
-invoke this Python module. Treat both components as prototypes until an
+An earlier uncalled Supabase function that referenced an undefined RPC was
+removed during final cleanup. No Supabase Edge Functions were deployed at the
+last read-only project inventory. Treat this script as a prototype until an
 authenticated API contract, validated input/output schema, privacy review,
 timeouts, and repeatable tests are in place.
 
@@ -66,11 +73,13 @@ send real user data through it until that data flow has been reviewed and
 approved. Model output is unstructured suggestion text and must not be treated
 as verified quantities or prices.
 
-## Model Configuration
+## Current model identifiers
 
-- **Primary Model**: GPT-4 for complex catering planning
-- **Secondary Model**: GPT-3.5-turbo for recipe scaling and simple queries
-- **Temperature**: 0.7 for creative menu suggestions, 0.3 for precise scaling
+The script hardcodes `gpt-4` for catering plans and `gpt-3.5-turbo` for recipe
+scaling and the convenience function. They are not configurable settings and
+there is no automatic fallback. The catering prompt also labels the supplied
+budget with a dollar sign, so its output is not a localized Nigerian price
+estimate.
 
 ## Error handling limits
 

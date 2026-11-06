@@ -30,4 +30,9 @@ These workflows reflect the current product behavior. Catering estimates remain 
 
 ## Verification scope
 
-Pure quantity validation has local regression tests. The production build and Supabase service endpoints have been checked. A signed-in end-to-end test with a dedicated account is still required to verify session, RLS, chat, inventory, and private Storage behavior together.
+Pure quantity validation, repository contracts, and readiness error cases have
+local regression tests. The owner reports manually verifying account sessions,
+chat persistence, inventory image upload, and isolation between two accounts.
+Those checks are user-reported evidence, not browser automation or CI coverage.
+Image deletion and a full restore of persisted data have not been verified
+against the live project.

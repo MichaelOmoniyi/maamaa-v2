@@ -1,0 +1,17 @@
+# Production Engineering narrative (draft)
+
+> **Owner review required:** This describes the current release design and locally observed checks. It does not claim a verified production deployment or a recovery drill. The implementation was AI-assisted; personalize any first-person account to your actual role.
+
+The application is a Nuxt frontend that calls Supabase Auth, Postgres, and private Storage directly from the browser. A separate Python/OpenAI prototype is not deployed or part of the user request path. The repository documents Vercel as the frontend hosting path, but the actual Vercel project settings and production environment have not been verified in this work.
+
+The release workflow is intended to install from the frontend lockfile, run the high-severity dependency audit, typecheck, run unit/repository tests, and build. A GitHub Actions workflow now encodes these checks for pull requests and pushes to `main`, using Node 22 and placeholder Supabase values. Its first GitHub run is pending. It does not deploy production. The local production build completed with the installed Nuxt 3.17.5 tree on Node 24.21.0; because the lockfile was updated afterward and the local install could not replace a locked esbuild binary, CI still needs to confirm the clean locked install.
+
+Two health endpoints distinguish process liveness from a dependency check. Liveness does not call Supabase. Readiness calls the Supabase Auth health endpoint with the public key and a 2.5-second timeout. API responses receive a request ID; JSON logs include route group, method, status, and duration. The local production preview returned HTTP 200 for both endpoints after enabling the system CA store. Readiness does not verify Postgres, Storage, RLS, or a signed-in data request, and there is no separate alerting platform.
+
+The emitted build report measured the largest client JavaScript chunk at 320.19 kB (107.78 kB gzip) and total Nitro server output at 3.57 MB (880 kB gzip). These are build-size measurements from one build, not a before/after comparison or a page-load benchmark. No performance improvement or SLO is claimed.
+
+Data integrity relies on RLS, owner-scoped Storage policies, database constraints, unique image paths, and explicit UI handling for failed writes. The test suite covers repository error paths and readiness timeout behavior with fakes. The owner reports manually checking account isolation and core persistence. We do not automatically retry non-idempotent inserts because an automatic retry could create duplicates.
+
+The runbook describes preview checks, migration review, Vercel rollback, and recovery in a separate Supabase project. Those are documented procedures, not verified operations. The active Supabase plan, database backup schedule, off-site image backup, RPO/RTO, and successful restore are unknown. Database backups do not include Storage objects, so the image backup needs separate coverage. The suggested recovery targets are proposals only.
+
+The next reliability work is to run the clean CI workflow, verify backup and image-object coverage, agree on recovery targets, and perform an isolated restore drill. Only after those steps should I describe release and recovery as operationally verified.

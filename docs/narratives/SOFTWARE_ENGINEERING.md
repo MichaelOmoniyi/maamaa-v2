@@ -1,0 +1,17 @@
+# Software Engineering narrative (draft)
+
+> **Owner review required:** This draft reflects the work and checks in this Codex conversation. The implementation was AI-assisted. Keep only statements that match your own role and understanding; do not claim sole authorship of code you did not write or cannot explain.
+
+MaaMaa is aimed at African event planners, caterers, home cooks, and food vendors. The long-term problem is organizing event catering and kitchen inventory. The current implementation is a foundation rather than a complete planning engine: it supports account access, saved chat notes, and inventory with private image uploads, while the estimator form does not yet calculate menus, quantities, or prices and chat does not generate AI replies.
+
+The current frontend is Nuxt 3 and Vue. Supabase Auth manages sessions, while the browser client calls Supabase Postgres and Storage. I helped set up a replacement Supabase project after the earlier project was deleted; the project owner applied the reconstructed migration and then reported testing real sessions, chat persistence, photo upload, and isolation with two accounts. We did not recover data from the deleted project.
+
+A key design decision is that ownership is enforced in Postgres RLS and Storage policies. Frontend filters and owner IDs make requests correct, but they are not the security boundary. Chat messages are authorized through their parent chat; images are private and stored under the user's folder. The migration also includes account-scoped export and deletion functions.
+
+The data layer was moved into chat and inventory repository modules so mapping and request behavior could be tested without a live database. The Node test suite uses deterministic fakes and covers query filters, owner fields, signed image URLs, and failures. Inventory validation checks finite nonnegative quantities. The tests are useful contract checks, but they do not prove deployed RLS or browser behavior; the two-account check remains manual evidence reported by the owner.
+
+One difficult integrity case is creating a chat and its first note in two separate requests. If the note insert fails after chat creation, the empty chat can remain. The interface records the chat and allows retrying the note in that same chat instead of blindly creating another. Inventory row deletion and image cleanup are also separate operations; if Storage cleanup fails, the UI reports that an image may remain. These are explicit partial-failure states, not transactions.
+
+The repository also contains a Python/OpenAI prototype, but it is not connected to the app. Its output is free text, it lacks production timeouts and validation, and its example budget prompt is not a verified local price calculation. I would only integrate AI after defining a server-side authenticated contract, privacy notice, output schema, domain validation, bounded timeout, and failure tests.
+
+The work taught me to distinguish a working code path from a product claim, and a deterministic fake from evidence about a deployed service. The highest-value next steps are a clean CI run, repeatable RLS/browser tests, and a tested data recovery process. If we build catering calculations, I would first verify the source and units for ingredient quantities and local prices rather than treating model output as authoritative.
