@@ -1,8 +1,8 @@
 # MaaMaa application data contracts
 
 This document describes the APIs the tracked application currently uses. It is
-based on the Nuxt frontend, the initial Supabase migration, and the typed data
-repositories. It does not describe planned AI behavior as an available API.
+based on the Nuxt frontend, the initial Supabase migration, the typed data
+repositories, and the authenticated Nuxt AI route.
 
 ## Architecture boundary
 
@@ -11,7 +11,7 @@ repositories. It does not describe planned AI behavior as an available API.
   Supabase client.
 - Supabase Auth provides account and session operations. PostgreSQL tables,
   Row Level Security, RPCs, and Storage provide the application data API.
-- Nitro exposes `/api/health/live` and `/api/health/ready` for operations. There is no tracked `/api/chat`, `/api/inventory`, or other server proxy for user data.
+- Nitro exposes health routes and `/api/ai/chat`. Chat and inventory persistence still use the signed-in browser Supabase client.
 - `ml/prompt_engineer.py` is standalone and is not called by the frontend.
 
 ## Operational endpoints
@@ -58,8 +58,9 @@ records to the authenticated owner.
 
 Creating a chat and inserting its first message are two separate requests, not a
 transaction. The partial-chat retry behavior is intentional until a transactional
-database operation is introduced. Notes are persisted; AI responses are not
-currently generated.
+database operation is introduced. User notes are persisted first; the AI reply
+is a separate provider call and separate assistant-message insert, so a failed
+provider or reply insert can leave the user's note without an answer.
 
 ## Inventory data and images
 
@@ -98,11 +99,24 @@ error messages. The current request logger provides API timing and status
 signals; browser-to-Supabase data requests do not pass through Nitro and are not
 centrally measured by this logger.
 
-## No active AI API
+## AI chat API
 
-There is no application AI API. A legacy, uncalled Supabase function that
-referenced an undefined RPC was removed during final cleanup after a read-only
-remote inventory confirmed that no Edge Functions were deployed. The Python
-module is standalone. Any future AI endpoint needs a separately reviewed
-authentication, input/output schema, privacy, timeout, and error contract.
+`POST /api/ai/chat` requires a Supabase access token in the Authorization
+Bearer header and `{ chatId, messages }`. It validates message roles and sizes,
+confirms the chat is visible to the caller through Postgres RLS, sends the last
+12 text messages to the configured Gemini `generateContent` model and returns
+`{ reply }`. The route supplies MaaMaa's system instruction, limits output to
+800 tokens, and keeps the Gemini API key server-side. On Google's free tier,
+Google may use submitted content to improve its products; the chat UI discloses
+this. The
+browser persists the reply using the existing RLS-protected chat repository.
+Stable error codes include
+`AUTH_REQUIRED`, `CHAT_NOT_FOUND`, `AI_NOT_CONFIGURED`, `AI_TIMEOUT`,
+`AI_PROVIDER_UNAVAILABLE`, `AI_RATE_LIMITED`, and `REQUEST_TOO_LARGE`.
+
+The current rate limiter is in memory per server process and is suitable only
+for a single instance or an initial controlled rollout; it must be replaced
+with a shared limiter before relying on limits across multiple instances. The
+service does not validate generated quantities or prices. The Python module
+remains standalone, and the former uncalled Supabase function was removed.
 

@@ -7,7 +7,7 @@
 
 - The original Supabase project was reportedly deleted without a backup. The current tracked migration is a reconstructed schema baseline; it is not a copy of the deleted database or its data.
 - A new Supabase project was created and the project owner reports applying the migration and testing the app with real accounts.
-- The current app is Nuxt/Vue plus Supabase Auth, Postgres, and Storage. The Python/OpenAI prototype is separate and is not used by the application.
+- The current app is Nuxt/Vue plus Supabase Auth, Postgres, and Storage. An authenticated Nuxt AI chat route now calls the configured Google Gemini API. The Python/OpenAI prototype remains separate.
 - Work in this repository is still uncommitted. Phase 3 through Phase 8 files are present together in the working tree. The project owner reports applying the initial schema earlier; no production deployment or remote migration was performed during Phases 3 through 8.
 
 ## Changes recorded
@@ -78,3 +78,20 @@ Before presenting the project, the owner should be able to explain the request f
 - No test file was removed; each is exercised by `npm test`. The cleanup audit found no generated files in the working tree.
 - Phase 8 is locally complete with external verification limits recorded below; no production deployment, hosted CI run, or restore drill was performed.
 - Re-ran Phase 8 checks on 2026-11-06; results and limitations are summarized in the final report. The first remote CI run, production deployment, and a real backup restore remain unverified.
+
+## AI chat integration follow-on (2026-11-07)
+
+- Added `POST /api/ai/chat`. It requires a Supabase access token, validates that token with Supabase Auth, and queries the chat using the same user JWT so RLS decides whether the caller can access it. It never uses a service-role key.
+- The route bounds chat history to 12 messages and 12,000 total text characters, checks an advertised body size limit, limits provider completion size, applies a 20-second timeout, and maps failures to stable codes. It has a per-process limit of 10 requests per user per minute; this is not shared across server instances and is not sufficient as the final abuse/cost control for a scaled deployment.
+- Provider settings are private Nuxt runtime variables `NUXT_OPENAI_API_KEY` and `NUXT_OPENAI_MODEL`. The real local `.env` was not read or changed. The app UI discloses that recent chat text is sent to the configured provider.
+- Assistant replies are saved through the existing browser Supabase client, so the existing RLS policy remains responsible for message ownership. The user note and assistant response are separate writes; a provider or insert failure can leave a saved user note without a reply.
+- Added five deterministic tests for bounded input, rate limiting, provider request construction, error mapping, malformed output, and timeout. The integration uses OpenAI's Responses API and disables response storage in the provider request. `npm test` passed **25 tests** on 2026-11-07; `npm run typecheck` passed; `npm run build` passed under elevated filesystem access after a sandbox `EPERM` blocked Nitro packaging on the first attempt.
+- A local production preview returned **401** to a valid chat request without an Authorization token, before any Supabase or OpenAI call. No authenticated live provider request, paid model call, production deployment, or remote Supabase change was made.
+- Remaining AI limits: no answer-quality evaluation or moderation, no durable cross-instance rate limiter or spend ceiling, and no provider data-retention review. Generated answers are suggestions, not verified quantities, prices, dietary or medical advice, or vendor availability. The estimator remains unintegrated.
+
+## Gemini provider switch (2026-11-08)
+
+- Replaced the OpenAI Responses API call in the Nuxt chat endpoint with Google's Gemini `generateContent` REST API. Requests use the private `NUXT_GEMINI_API_KEY` and `NUXT_GEMINI_MODEL` runtime variables; the default model is `gemini-3.5-flash-lite`.
+- Kept Supabase authentication, chat ownership verification via the caller's JWT and RLS, request bounds, timeout, rate limiter, stable error mapping, and assistant-message persistence.
+- Updated the chat disclosure: recent text goes to Google Gemini, and Google's free-tier terms may allow submitted content to be used to improve Google products.
+- Tests now assert Gemini request shape, server-side key header, user/model role conversion, output mapping, malformed responses, and provider failures. No real Gemini key was read or changed, no live Gemini API request was made, and no deployment occurred.

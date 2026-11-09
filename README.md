@@ -1,11 +1,11 @@
 # MaaMaa
 
-MaaMaa is a web application for African event planners, caterers, home cooks, and food vendors. It is intended to help organize catering information and kitchen inventory. The current application supports account access, saved chat notes, and inventory management; personalized menus, recipe scaling, and cost estimates are not available yet.
+MaaMaa is a web application for African event planners, caterers, home cooks, and food vendors. It is intended to help organize catering information and kitchen inventory. The current application supports account access, AI-assisted chat, and inventory management; personalized menus, recipe scaling, and cost estimates are not available yet.
 
 ## Current features
 
 - Supabase email/password registration, confirmation, sign-in, sign-out, and password recovery flows.
-- Saved notes and chat history for authenticated users. AI answers and response regeneration are not connected.
+- Authenticated chat with AI-generated replies through a server-side Google Gemini endpoint. On Google's free tier, submitted text may be used to improve Google products; avoid sending sensitive information.
 - Inventory item create, read, update, and delete flows backed by Supabase Postgres.
 - JPEG inventory photos in a private Supabase Storage bucket, with short-lived signed URLs.
 - An estimator form that collects event inputs and then explains that no estimate is calculated.
@@ -18,28 +18,31 @@ The project owner reports manually checking real account sessions, chat persiste
 ```mermaid
 flowchart LR
   Browser[Browser: Nuxt and Vue UI] -->|Auth, database, Storage calls| Supabase[Supabase Auth, Postgres with RLS, private Storage]
-  Browser -->|Nuxt API requests| Health[Nuxt Nitro health endpoints]
+  Browser -->|Health requests| Health[Nuxt Nitro health endpoints]
   Health -->|Public API key, bounded request| AuthHealth[Supabase Auth health endpoint]
+  Browser -->|Recent chat text and Supabase access token| AI[Authenticated Nuxt AI endpoint]
+  AI -->|User JWT and RLS ownership check| Supabase
+  AI -->|Recent chat text| Provider[Configured Google Gemini model]
   GitHub[GitHub Actions: checks only] -->|npm ci, audit, typecheck, tests, build| Frontend[Nuxt frontend]
   ML[Standalone Python/OpenAI prototype] -. not connected .-> Browser
 ```
 
-The Nuxt pages and components own the user interface. Repository modules in `frontend/services/` centralize chat and inventory calls to Supabase. Postgres Row Level Security (RLS) and Storage policies enforce ownership; the browser client is not the authorization boundary by itself. Nitro currently provides health endpoints and API request diagnostics, not chat or inventory proxy APIs. The Python prototype in `ml/` is separate and is not deployed or called by the frontend.
+The Nuxt pages and components own the user interface. Repository modules in `frontend/services/` centralize chat and inventory calls to Supabase. Postgres Row Level Security (RLS) and Storage policies enforce ownership; the browser client is not the authorization boundary by itself. Nitro provides health endpoints and an authenticated `/api/ai/chat` endpoint. The AI route validates the caller's Supabase token, checks chat access using that caller's JWT, bounds conversation input, and keeps the provider key server-side. The Python prototype in `ml/` remains separate and is not called by the frontend.
 
 ## Technology
 
 - **Nuxt 3 and Vue 3** provide the page, component, and server runtime.
 - **Supabase Auth, Postgres, and Storage** provide identity and user-owned persistence.
 - **Pinia** holds frontend auth state; **Tailwind CSS** styles the UI.
-- **Node's built-in test runner** exercises pure validation, repository contracts, and readiness behavior without adding a test framework.
+- **Node's built-in test runner** exercises validation, repository contracts, AI provider handling, and readiness behavior without adding a test framework.
 - **GitHub Actions** is configured to run checks on pull requests and pushes to `main`; it does not deploy.
-- **Python and the OpenAI SDK** are used by an optional standalone prototype only.
+- **Python and the OpenAI SDK** are used by the optional standalone prototype; the Nuxt server calls the Gemini API over HTTPS.
 
 ## Requirements
 
 - Node.js 22 and npm for the frontend workflow (the CI workflow uses Node 22).
 - A Supabase project for authenticated data features.
-- Python 3 and an OpenAI API key only if you separately choose to run the unintegrated prototype.
+- A server-side Gemini API key for AI chat. Python 3 and an OpenAI API key are needed only for the separate prototype.
 - Supabase CLI only when linking a project or managing migrations. The repository root declares it as a development dependency.
 
 ## Local setup
@@ -49,7 +52,7 @@ Install frontend dependencies and configure the local environment:
 ```powershell
 cd frontend
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Edit .env and set the two values below.
+# Edit .env and set the Gemini key below; the model has a default.
 npm ci
 npm run dev
 ```
@@ -59,9 +62,11 @@ npm run dev
 ```dotenv
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_ANON_KEY=<publishable-or-legacy-anon-key>
+NUXT_GEMINI_API_KEY=<server-only-gemini-api-key>
+NUXT_GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
-`SUPABASE_ANON_KEY` is the existing configuration variable name; its value may be the Supabase publishable key or legacy anon key. These are public client keys. Never put a Supabase secret/service-role key in frontend configuration. `.env` is ignored by Git; use `.env.example` as the placeholder template.
+`SUPABASE_ANON_KEY` is the existing configuration variable name; its value may be the Supabase publishable key or legacy anon key. These are public client keys. `NUXT_GEMINI_API_KEY` and `NUXT_GEMINI_MODEL` are private Nuxt runtime settings. Never prefix the provider key with `NUXT_PUBLIC_` or expose it to client configuration, and never put a Supabase secret/service-role key in the frontend. `.env` is ignored by Git; use `.env.example` as the placeholder template. Add the Gemini settings to local `frontend/.env` and the hosting provider's server environment before expecting AI replies.
 
 For a local certificate trust issue with Node in PowerShell, set the system CA option for that shell before running commands:
 
@@ -100,13 +105,13 @@ The first GitHub Actions run is still pending. The latest dependency audit found
 
 ## Optional ML prototype
 
-The prototype has no integration with the Nuxt application and does not produce app chat replies or estimator results. It sends its example prompts to an external model provider. Do not send real user data through it. Its current exception logging, timeout, validation, and automated test coverage are not production-ready.
+The prototype is separate from the Nuxt integration and does not produce estimator results. It sends its example prompts to an external model provider. Its current exception logging, timeout, validation, and automated test coverage are not production-ready.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r ml/requirements.txt
-# Create ml/.env with OPENAI_API_KEY=<your-key> only for this experiment.
+# For the standalone experiment, create ml/.env with OPENAI_API_KEY=<your-key>.
 python ml/prompt_engineer.py
 ```
 
@@ -124,7 +129,7 @@ Useful endpoints after deploying:
 ## Known limitations
 
 - The estimator form does not calculate menus, ingredient quantities, or prices. Local food prices have not been verified.
-- AI is not integrated into chat or the estimator; no production AI output validation or provider-failure handling exists.
+- AI chat uses a server-side provider endpoint, but answer quality has not been evaluated and its per-process rate limit is not shared across app instances. The estimator remains disconnected; no quantities or prices are calculated.
 - Authenticated user operations call Supabase directly from the browser. RLS and Storage policies are critical security controls.
 - Chat creation and its first message are separate database operations, so a partial chat can remain if the message write fails.
 - A database backup does not include inventory image objects. The current Supabase backup configuration and a successful restore have not been verified.

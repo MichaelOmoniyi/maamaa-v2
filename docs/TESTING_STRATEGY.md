@@ -4,7 +4,7 @@
 
 | Layer | How to run | What it covers | What it does not prove |
 | --- | --- | --- | --- |
-| Unit and repository contract tests | `cd frontend` then `npm test` | Inventory quantity validation, chat row/message mapping, Supabase query payloads, ownership fields, signed image URL mapping, repository error behavior, and readiness checks for missing configuration, HTTP failures, and timeouts | Real network behavior, deployed Postgres/RLS/Storage health, bucket policies, or browser rendering |
+| Unit and repository contract tests | `cd frontend` then `npm test` | Inventory quantity validation, chat row/message mapping, Supabase query payloads, ownership fields, signed image URL mapping, AI request validation/rate limits/provider handling, and readiness checks | Real provider behavior, deployed Postgres/RLS/Storage health, bucket policies, or browser rendering |
 | Type checking | `cd frontend` then `npm run typecheck` | Generated Nuxt types, tracked database contract, and `// @ts-check` JavaScript services | Type checking Vue single-file component scripts; `vue-tsc` is not configured |
 | Production build | `cd frontend` then `npm run build` | Nuxt client/server compilation and Nitro packaging | Remote Supabase availability or account-specific redirects |
 | Signed-in workflow check | Use a separate test project/account and follow the manual checklist below | Confirmation/login, saved chat history, inventory image flow, and cross-account isolation | Automated CI regression coverage |
@@ -13,12 +13,11 @@ Tests use Node's built-in test runner and no extra testing dependencies. The fak
 Supabase client captures query inputs and returns controlled responses; it does
 not connect to the network or the MaaMaa project.
 
-The latest Node coverage report for modules loaded by the current tests was
-98.96% of lines, 67.03% of branches, and 100% of functions. It includes the
-readiness helper, repository modules, quantity validator, and fake client. It
-does not cover Vue pages, Nitro route handlers/middleware, or the whole
-application, and it is not a quality target. The uncovered readiness branches
-include uncommon URL and transport/body-cancellation cases.
+The Phase 8 Node coverage report for modules loaded by that test set was 98.96%
+of lines, 67.03% of branches, and 100% of functions. It predates the AI helper
+tests and is not a current whole-project coverage result. Tests do not cover
+Vue pages, the Nitro AI route's live authentication/ownership checks, or the
+whole application, and the earlier coverage numbers are not a quality target.
 
 ## Manual signed-in regression checklist
 
@@ -43,13 +42,12 @@ verification against a disposable Supabase project.
 
 ## AI evaluation status
 
-The frontend has no AI response integration, so AI output tests are not
-applicable to the current product behavior. If an AI endpoint is added, keep
-ordinary tests deterministic with mocked provider responses. Test valid output,
-malformed or missing fields, refusals, timeouts, and provider errors. Evaluate
-software behavior, schema validity, domain correctness, and subjective
-usefulness separately. Do not treat generated quantities or prices as verified
-business data.
+The frontend now uses an authenticated server endpoint for AI chat. Unit tests
+use mocked provider responses; they do not prove actual account credentials,
+Gemini billing/configuration, live provider behavior, or response quality. Test
+valid output, malformed or missing fields, timeouts, and provider errors.
+Evaluate software behavior and subjective usefulness separately. Do not treat
+generated quantities or prices as verified business data.
 
 ## Known verification limits
 

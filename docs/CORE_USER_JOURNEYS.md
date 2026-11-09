@@ -14,7 +14,7 @@ These workflows reflect the current product behavior. Catering estimates remain 
 
 1. An authenticated user opens a chat or starts a new one with a non-empty note.
 2. The chat and note are persisted to `chats` and `chat_messages`; the UI shows the new item only after successful persistence, or clearly identifies a partially created chat and offers a safe retry.
-3. The user can reload a chat and see its saved notes. AI generation is not part of this workflow.
+3. The user can reload a chat and see saved user notes and, when server AI settings are configured, saved assistant replies. Chat text used for a reply is sent to the configured AI provider.
 
 **Failure cases:** whitespace-only note, duplicate submit, chat creation failure, note insert failure after chat creation, load/network failure, unauthorized chat ID.
 

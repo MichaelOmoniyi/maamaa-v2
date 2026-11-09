@@ -2,8 +2,9 @@
 
 This directory contains a standalone Python prototype. It is not imported by
 the Nuxt application, deployed as a service, or connected to Supabase Edge
-Functions. The current product does not generate AI chat replies or catering
-plans.
+Functions. The Nuxt app now generates chat replies through its separate
+authenticated server endpoint. The app does not generate validated catering
+plans or estimates.
 
 ## Prototype functions
 
@@ -61,17 +62,16 @@ print(plan["content"])
 
 ## Integration status
 
-There is no frontend integration or `/api/chat` endpoint in this repository.
-An earlier uncalled Supabase function that referenced an undefined RPC was
-removed during final cleanup. No Supabase Edge Functions were deployed at the
-last read-only project inventory. Treat this script as a prototype until an
-authenticated API contract, validated input/output schema, privacy review,
-timeouts, and repeatable tests are in place.
+This script remains separate from the Nuxt application's authenticated
+`/api/ai/chat` endpoint. An earlier uncalled Supabase function that referenced
+an undefined RPC was removed during final cleanup. No Supabase Edge Functions
+were deployed at the last read-only project inventory.
 
-The prototype sends event and recipe input to an external model provider. Do not
-send real user data through it until that data flow has been reviewed and
-approved. Model output is unstructured suggestion text and must not be treated
-as verified quantities or prices.
+The prototype sends event and recipe input to an external model provider. Model
+output is unstructured suggestion text and must not be treated as verified
+quantities or prices. The application AI endpoint also sends recent chat text
+to the configured provider; users are shown a notice and should not include
+sensitive information.
 
 ## Current model identifiers
 
