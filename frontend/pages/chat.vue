@@ -24,8 +24,8 @@
             </svg>
           </button>
         </div>
-        <p class="mt-2 text-sm text-gray-500" role="status">
-          AI replies are not connected yet. Your notes can still be saved to your chat history.
+        <p class="mt-2 text-sm text-gray-500" role="note">
+          Recent chat text is sent to Google Gemini. Google may use data submitted on its free tier to improve its products. Do not include passwords, payment details, or sensitive information.
         </p>
       </div>
       
@@ -54,6 +54,7 @@
       <!-- Chat header -->
       <div class="px-6 py-4 border-b border-gray-200">
         <h2 class="text-xl font-semibold text-gray-800">{{ currentChat.title }}</h2>
+        <p class="mt-1 text-xs text-gray-500">Recent chat text is sent to Google Gemini. Free-tier data may be used to improve Google's products; avoid sharing sensitive information.</p>
       </div>
       
       <!-- Chat messages - Flex grow to take available space -->
@@ -154,10 +155,9 @@
                 <!-- Message Actions -->
                 <MessageActions 
                   :message="message" 
-                  :show-retry="true"
+                  :show-retry="false"
                   @copy="handleCopyMessage"
                   @share="handleShareMessage"
-                  @retry="handleRetryMessage"
                 />
               </div>
               
@@ -167,10 +167,9 @@
                 <!-- Message Actions -->
                 <MessageActions 
                   :message="message" 
-                  :show-retry="true"
+                  :show-retry="false"
                   @copy="handleCopyMessage"
                   @share="handleShareMessage"
-                  @retry="handleRetryMessage"
                 />
               </div>
             </div>
@@ -199,8 +198,11 @@
             </svg>
           </button>
         </div>
-        <p class="mt-2 text-sm text-gray-500" role="status">
-          AI replies are not connected yet. Your notes can still be saved to your chat history.
+        <p v-if="sendingMessage" class="mt-2 text-sm text-gray-500" role="status">
+          MaaMaa is preparing a reply…
+        </p>
+        <p class="mt-2 text-sm text-gray-500" role="note">
+          Recent chat text is sent to Google Gemini. Free-tier data may be used to improve Google's products.
         </p>
         
         <div class="flex justify-start mt-2">
@@ -285,6 +287,7 @@ definePageMeta({
 
 const authStore = useAuthStore();
 const chatRepository = createChatRepository(useSupabaseClient());
+const supabaseClient = useSupabaseClient();
 const router = useRouter();
 const route = useRoute();
 
@@ -368,10 +371,6 @@ const handleShareMessage = (message) => {
   shareModalOpen.value = true;
 };
 
-const handleRetryMessage = async (message) => {
-  showNotification('AI replies are not connected yet, so this message cannot be regenerated.', 'info');
-};
-
 // Share modal actions
 const handleCopyLink = () => {
   const chatId = currentChat.value.id;
@@ -410,6 +409,44 @@ const addMessageToChat = async (chatId, message) => {
     return true;
   } catch (error) {
     showNotification('Failed to save message. Please try again.', 'error');
+    return false;
+  }
+};
+
+const generateReply = async (chat) => {
+  try {
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !sessionData.session?.access_token) throw new Error('AUTH_REQUIRED');
+
+    const messages = (chat.messages || [])
+      .filter(message => ['user', 'assistant'].includes(message.role)
+        && typeof message.content === 'string'
+        && !isPlaceholderAssistantMessage(message))
+      .slice(-12)
+      .map(({ role, content }) => ({ role, content }));
+    const result = await $fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+      body: { chatId: chat.id, messages },
+    });
+    if (typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('AI_INVALID_RESPONSE');
+
+    const assistantMessage = { role: 'assistant', content: result.reply.trim(), type: 'text' };
+    await chatRepository.insertMessage(chat.id, assistantMessage);
+    chat.messages.push(assistantMessage);
+    chat.updatedAt = new Date();
+    chatMessagesCache.value[chat.id] = chat.messages;
+    if (chatData) chatData.updateChatHistory(chat);
+    scrollToBottom();
+    return true;
+  } catch (error) {
+    const code = error?.data?.data?.code || error?.data?.code || error?.statusMessage;
+    const message = code === 'AI_NOT_CONFIGURED'
+      ? 'Your note was saved, but AI is not configured on the server yet.'
+      : code === 'AI_RATE_LIMITED'
+        ? 'Your note was saved. Please wait a minute before asking MaaMaa again.'
+        : 'Your note was saved, but MaaMaa could not generate a reply. Please try again shortly.';
+    showNotification(message, 'error');
     return false;
   }
 };
@@ -453,7 +490,7 @@ const sendMessage = async () => {
     if (chatData) {
       chatData.updateChatHistory(chat);
     }
-    showNotification('Your note was saved. AI replies are not connected yet.', 'info');
+    await generateReply(chat);
   } finally {
     sendingMessage.value = false;
   }
@@ -538,7 +575,7 @@ const sendNewMessage = async () => {
 
     router.replace({ path: '/chat', query: { id: newChat.id } });
     if (newChatMessage.value.trim() === submittedText) newChatMessage.value = '';
-    showNotification('Your note was saved. AI replies are not connected yet.', 'info');
+    await generateReply(newChat);
   } finally {
     sendingMessage.value = false;
   }
